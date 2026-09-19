@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
-import { Play, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { API_BASE_URL } from '../api/client';
 import Spinner from '../components/common/Spinner';
@@ -29,23 +29,20 @@ function GoogleIcon() {
   );
 }
 
-export default function LoginPage({ initialMode = 'login' }) {
-  const { isAuthenticated, loading, sessionMessage, clearSessionMessage, login, register } = useAuth();
+// VidMind uses Google as the ONLY sign-in method. This page presents a single
+// "Continue with Google" action that redirects to the existing backend OAuth
+// endpoint (GET /api/auth/google/login). No email/password UI is shown.
+export default function LoginPage() {
+  const { isAuthenticated, loading, sessionMessage, clearSessionMessage } = useAuth();
   const [searchParams] = useSearchParams();
   const oauthError = searchParams.get('error');
-  const [mode, setMode] = useState(initialMode);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [username, setUsername] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formError, setFormError] = useState(null);
   const [isRedirecting, setIsRedirecting] = useState(false);
 
   useEffect(() => () => clearSessionMessage(), [clearSessionMessage]);
 
   if (loading) {
     return (
-      <div className={styles.wrap}>
+      <div className={`${styles.wrap} force-light-theme`}>
         <div className={styles.card}>
           <div className={styles.callbackStatus}>
             <Spinner size={24} />
@@ -56,7 +53,6 @@ export default function LoginPage({ initialMode = 'login' }) {
     );
   }
 
-  // Authenticated user: redirect to /app
   if (isAuthenticated) {
     return <Navigate to="/app" replace />;
   }
@@ -66,66 +62,33 @@ export default function LoginPage({ initialMode = 'login' }) {
     window.location.href = `${API_BASE_URL}/auth/google/login`;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (isSubmitting) return;
-
-    setFormError(null);
-    const cleanEmail = email.trim();
-    if (!cleanEmail || !cleanEmail.includes('@')) {
-      setFormError('Please enter a valid email address.');
-      return;
-    }
-    if (!password || password.length < 6) {
-      setFormError('Password must be at least 6 characters.');
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-      if (mode === 'register') {
-        await register({ email: cleanEmail, password, username: username.trim() || undefined });
-      } else {
-        await login({ email: cleanEmail, password });
-      }
-    } catch (err) {
-      setFormError(err?.message || 'Authentication failed. Please verify your credentials.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   return (
-    <div className={styles.wrap}>
+    <div className={`${styles.wrap} force-light-theme`}>
       <div className={styles.card}>
         <Link to="/" className={styles.brandLink}>
-          <div className={styles.brandIcon} aria-hidden="true">
-            <Play size={16} fill="currentColor" />
-          </div>
+          <img src="/logo.svg" alt="VidMind logo" className={styles.brandLogoImg} />
           <span className={styles.brandName}>
-            Reel<span className={styles.brandAccent}>.</span>
+            VidMind<span className={styles.brandAccent}>.</span>
           </span>
         </Link>
 
-        <h1 className={styles.title}>
-          {mode === 'register' ? 'Create an account' : 'Welcome to Reel'}
-        </h1>
-        <p className={styles.body}>
-          {mode === 'register'
-            ? 'Sign up to start organizing and asking questions about YouTube videos.'
-            : 'Ask questions about any YouTube video.'}
-        </p>
+        <h1 className={styles.title}>Welcome to VidMind</h1>
+        <p className={styles.body}>Ask questions about any YouTube video with AI.</p>
 
         {sessionMessage && <p className={styles.notice}>{sessionMessage}</p>}
-        {oauthError && <p className={styles.errorNotice}>{oauthError}</p>}
-        {formError && <p className={styles.errorNotice}>{formError}</p>}
+        {oauthError && (
+          <p className={styles.errorNotice} data-testid="auth-error-notice">
+            {oauthError}
+          </p>
+        )}
 
         <button
           type="button"
           className={styles.googleButton}
           onClick={handleContinueWithGoogle}
-          disabled={isRedirecting || isSubmitting}
+          disabled={isRedirecting}
           aria-label="Continue with Google"
+          data-testid="google-auth-button"
         >
           {isRedirecting ? (
             <>
@@ -140,114 +103,11 @@ export default function LoginPage({ initialMode = 'login' }) {
           )}
         </button>
 
-        <div className={styles.divider}>or with email</div>
-
-        <form className={styles.authForm} onSubmit={handleSubmit} noValidate>
-          {mode === 'register' && (
-            <div className={styles.formGroup}>
-              <label className={styles.label} htmlFor="auth-username">
-                Full Name (optional)
-              </label>
-              <input
-                id="auth-username"
-                type="text"
-                className={styles.input}
-                placeholder="Ashik Raj"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                disabled={isSubmitting || isRedirecting}
-              />
-            </div>
-          )}
-
-          <div className={styles.formGroup}>
-            <label className={styles.label} htmlFor="auth-email">
-              Email address
-            </label>
-            <input
-              id="auth-email"
-              type="email"
-              className={styles.input}
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                if (formError) setFormError(null);
-              }}
-              disabled={isSubmitting || isRedirecting}
-              required
-            />
-          </div>
-
-          <div className={styles.formGroup}>
-            <label className={styles.label} htmlFor="auth-password">
-              Password
-            </label>
-            <input
-              id="auth-password"
-              type="password"
-              className={styles.input}
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                if (formError) setFormError(null);
-              }}
-              disabled={isSubmitting || isRedirecting}
-              required
-            />
-          </div>
-
-          <button
-            type="submit"
-            className={styles.submitButton}
-            disabled={isSubmitting || isRedirecting}
-          >
-            {isSubmitting ? (
-              <>
-                <Spinner size={16} />
-                <span>{mode === 'register' ? 'Creating account…' : 'Signing in…'}</span>
-              </>
-            ) : (
-              <span>{mode === 'register' ? 'Create account' : 'Sign in'}</span>
-            )}
-          </button>
-        </form>
-
-        <div className={styles.modeToggle}>
-          {mode === 'register' ? (
-            <span>
-              Already have an account?
-              <button
-                type="button"
-                className={styles.toggleBtn}
-                onClick={() => {
-                  setMode('login');
-                  setFormError(null);
-                }}
-              >
-                Sign in
-              </button>
-            </span>
-          ) : (
-            <span>
-              Don&apos;t have an account?
-              <button
-                type="button"
-                className={styles.toggleBtn}
-                onClick={() => {
-                  setMode('register');
-                  setFormError(null);
-                }}
-              >
-                Create one
-              </button>
-            </span>
-          )}
-        </div>
+        <p className={styles.supportingText}>Sign in securely with your Google account.</p>
 
         <div className={styles.authInfoNotice}>
-          Single-sign on via Google or email. Reel accesses only your verified basic profile to identify your video library.
+          The same Google sign-in works for new and returning users. VidMind accesses only your
+          verified basic profile to identify your video library.
         </div>
       </div>
 

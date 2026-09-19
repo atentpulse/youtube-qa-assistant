@@ -4,6 +4,55 @@
   margin: 0 auto;
 }
 
+/* Welcome variant — centered on the empty workspace */
+.composerWelcome {
+  margin: auto;
+  padding: 40px 24px;
+}
+
+/* Panel variant — floating card used by the "Add video" action */
+.composerPanel {
+  margin: 40px auto;
+  padding: 24px;
+  background: var(--paper-0);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  height: fit-content;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.panelTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-900);
+  margin: 0;
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  color: var(--text-500);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.closeBtn:hover {
+  background: var(--paper-100);
+  color: var(--text-900);
+}
+
 .inputWrap {
   display: flex;
   align-items: center;

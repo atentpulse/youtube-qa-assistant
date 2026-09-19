@@ -7,5 +7,8 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 3000,
+    // The platform ingress proxies the preview domain to this dev server;
+    // allow its host header.
+    allowedHosts: true,
   },
 });

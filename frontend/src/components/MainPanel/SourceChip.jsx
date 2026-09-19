@@ -19,6 +19,7 @@ export default function SourceChip({ source, onSeek }) {
       target="_blank"
       rel="noopener noreferrer"
       className={styles.sourceChip}
+      data-testid="source-chip"
       onClick={handleClick}
       title={source.text ? source.text.slice(0, 120) : 'Jump to timestamp'}
     >

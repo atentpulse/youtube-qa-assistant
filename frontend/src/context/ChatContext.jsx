@@ -115,9 +115,9 @@ export function ChatProvider({ children }) {
 
       try {
         const response = await askQuestion({
-          videoId,
+          video_id: videoId,
           question,
-          conversationId: currentConvId,
+          conversation_id: currentConvId,
         });
 
         const notFound = isNoInformationFound(response);
@@ -179,9 +179,9 @@ export function ChatProvider({ children }) {
 
       try {
         const response = await askQuestion({
-          videoId,
+          video_id: videoId,
           question,
-          conversationId: currentConvId,
+          conversation_id: currentConvId,
         });
 
         const notFound = isNoInformationFound(response);

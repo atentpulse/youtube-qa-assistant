@@ -63,6 +63,7 @@ function QAComposer({ videoId }) {
           disabled={isSubmitting}
           className={styles.composerInput}
           aria-label="Ask a question about this video"
+          data-testid="question-input"
         />
         <button
           type="button"
@@ -70,6 +71,7 @@ function QAComposer({ videoId }) {
           disabled={isSubmitting || !question.trim()}
           onClick={handleSubmit}
           aria-label="Send question"
+          data-testid="question-submit-button"
         >
           {isSubmitting ? (
             <Spinner size={15} />
@@ -90,7 +92,7 @@ function QAComposer({ videoId }) {
   );
 }
 
-function VideoHeader({ video, onAddVideo }) {
+function VideoHeader({ video }) {
   const statusColors = {
     [VIDEO_STATUS.PROCESSED]: "var(--success-600, #16a34a)",
     [VIDEO_STATUS.ALREADY_PROCESSED]: "var(--success-600, #16a34a)",
@@ -110,25 +112,17 @@ function VideoHeader({ video, onAddVideo }) {
         <img src={video.thumbnail_url} alt="" className={styles.videoThumb} />
       )}
       <div className={styles.videoHeaderText}>
-        <p className={styles.videoTitle} title={video.title}>
+        <p className={styles.videoTitle} title={video.title} data-testid="video-header-title">
           {video.title || "Untitled video"}
         </p>
         <p
           className={styles.videoStatus}
           style={{ color: statusColors[video.status] || "var(--text-500)" }}
+          data-testid="video-header-status"
         >
           {statusLabels[video.status] || video.status}
         </p>
       </div>
-      <button
-        type="button"
-        className={styles.addVideoBtn}
-        onClick={onAddVideo}
-        aria-label="Add another video"
-        title="Add video"
-      >
-        +
-      </button>
     </div>
   );
 }
@@ -136,7 +130,7 @@ function VideoHeader({ video, onAddVideo }) {
 export default function MainPanel() {
   const { selectedVideo, libraryStatus, reprocessVideo } = useVideoLibrary();
   const { activeConversationId } = useConversations();
-  const { isComposerOpen, openComposer, closeComposer } = useUI();
+  const { isComposerOpen, closeComposer } = useUI();
   const { getThread } = useChat();
   const { openMobileSidebar } = useUI();
   const threadEndRef = useRef(null);
@@ -173,7 +167,7 @@ export default function MainPanel() {
         >
           <MenuIcon />
         </button>
-        <span className={styles.mobileBrand}>Reel</span>
+        <span className={styles.mobileBrand}>VidMind</span>
       </div>
 
       {/* Loading state */}
@@ -184,9 +178,17 @@ export default function MainPanel() {
         </div>
       )}
 
-      {/* No video selected — show URL composer welcome screen */}
+      {/* No video selected — clean dashboard welcome / empty state */}
       {libraryStatus !== "loading" && !selectedVideo && !isComposerOpen && (
-        <UrlComposer variant="welcome" />
+        <div className={styles.dashboardWelcome} data-testid="dashboard-empty-state">
+          <img src="/logo.svg" alt="" className={styles.welcomeLogo} />
+          <h2 className={styles.welcomeTitle}>Welcome to VidMind</h2>
+          <p className={styles.welcomeBody}>
+            Select a video from your library to start asking questions — or add a
+            new YouTube video to get started.
+          </p>
+          <UrlComposer variant="welcome" />
+        </div>
       )}
 
       {/* Composer panel (Add video) */}
@@ -196,8 +198,8 @@ export default function MainPanel() {
 
       {/* Video workspace */}
       {selectedVideo && !isComposerOpen && (
-        <div className={styles.workspace}>
-          <VideoHeader video={selectedVideo} onAddVideo={openComposer} />
+        <div className={styles.workspace} data-testid="video-workspace">
+          <VideoHeader video={selectedVideo} />
 
           <div className={styles.threadWrap}>
             {isProcessing && (
@@ -218,6 +220,7 @@ export default function MainPanel() {
                   type="button"
                   className={styles.retryLink}
                   style={{ marginTop: '8px', cursor: 'pointer' }}
+                  data-testid="retry-processing-button"
                   onClick={() =>
                     reprocessVideo(
                       selectedVideo.video_id,
@@ -231,7 +234,7 @@ export default function MainPanel() {
             )}
 
             {isReady && thread.length === 0 && (
-              <div className={styles.emptyThread}>
+              <div className={styles.emptyThread} data-testid="empty-thread">
                 <p className={styles.emptyThreadTitle}>
                   Ready to answer questions
                 </p>

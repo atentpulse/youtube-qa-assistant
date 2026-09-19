@@ -92,6 +92,60 @@ ol {
   border: 0;
 }
 
+/* ============================================================
+   Public marketing/auth pages (landing, login, OAuth callback)
+   always render in the light brand palette. They use fixed light
+   surfaces, so the app's dark-theme token overrides must not leak
+   in (which would put light text on white cards). This re-declares
+   the light token values for that subtree only.
+   ============================================================ */
+.force-light-theme {
+  --ink-950: #121316;
+  --ink-900: #18191f;
+  --ink-800: #22232a;
+  --ink-700: #2c2e37;
+  --ink-600: #3b3e4a;
+  --line-dark: #2a2c37;
+
+  --paper-0: #ffffff;
+  --paper-50: #fafaf8;
+  --paper-100: #f4f3ef;
+  --paper-200: #eceae3;
+  --line: #e7e5e0;
+  --line-strong: #d7d4cc;
+
+  --text-900: #1c1917;
+  --text-800: #292524;
+  --text-700: #44403c;
+  --text-600: #57534e;
+  --text-500: #78716c;
+  --text-400: #a8a29e;
+  --text-inverse: #fafaf9;
+  --text-inverse-muted: #a8a29e;
+  --text-inverse-faint: #78716c;
+
+  --success-600: #16a34a;
+  --success-100: #dcfce7;
+  --warning-600: #d97706;
+  --warning-100: #fef3c7;
+  --danger-600: #dc2626;
+  --danger-100: #fee2e2;
+
+  --focus-border: #64748b;
+  --focus-ring: rgba(100, 116, 139, 0.15);
+
+  --surface-100: #f1f5f9;
+  --line-subtle: #e7e5e0;
+  --line-light: #e7e5e0;
+
+  --label-q-bg: #1c1917;
+  --label-a-bg: #4f46e5;
+  --btn-send-bg: #1c1917;
+  --btn-send-hover: #292524;
+
+  color-scheme: light;
+}
+
 /* ---- Toasts ---- */
 .toast-stack {
   position: fixed;

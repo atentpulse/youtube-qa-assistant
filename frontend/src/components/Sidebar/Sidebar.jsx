@@ -4,11 +4,13 @@ import VideoLibraryItem from './VideoLibraryItem';
 import ConversationItem from './ConversationItem';
 import Spinner from '../common/Spinner';
 import Modal from '../common/Modal';
+import { Moon, Sun } from 'lucide-react';
 import { useVideoLibrary } from '../../context/VideoLibraryContext';
 import { useConversations } from '../../context/ConversationContext';
 import { useChat } from '../../context/ChatContext';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { VIDEO_STATUS } from '../../utils/constants';
 import styles from './Sidebar.module.css';
 
@@ -56,6 +58,7 @@ export default function Sidebar() {
   const { clearThread } = useChat();
   const { openComposer, closeComposer, isMobileSidebarOpen, closeMobileSidebar } = useUI();
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
@@ -110,10 +113,10 @@ export default function Sidebar() {
       <aside className={`${styles.sidebar} ${isMobileSidebarOpen ? styles.sidebarOpen : ''}`}>
         <div className={styles.brand}>
           <div className={styles.brandMark} aria-hidden="true">
-            <img src="/logo.png" alt="" className={styles.brandMarkImg} />
+            <img src="/logo.svg" alt="" className={styles.brandMarkImg} />
           </div>
           <div>
-            <h1 className={styles.brandName}>Reel</h1>
+            <h1 className={styles.brandName}>VidMind</h1>
             <p className={styles.brandSubtitle}>Video Q&A</p>
           </div>
           <button
@@ -133,6 +136,7 @@ export default function Sidebar() {
             className={styles.newVideoButton}
             onClick={handleNewChat}
             aria-label="Start a new chat"
+            data-testid="new-chat-button"
           >
             <PlusIcon />
             + New Chat
@@ -196,6 +200,7 @@ export default function Sidebar() {
             onClick={handleNewVideo}
             aria-label="Add a YouTube video"
             title="Add video"
+            data-testid="add-video-button"
           >
             <PlusIcon />
             Add video
@@ -212,6 +217,7 @@ export default function Sidebar() {
                 onChange={(e) => setQuery(e.target.value)}
                 className={styles.searchInput}
                 aria-label="Search video library"
+                data-testid="library-search-input"
               />
             </div>
             <div className={styles.filterRow} role="tablist" aria-label="Filter by status">
@@ -286,10 +292,21 @@ export default function Sidebar() {
           </div>
           <button
             type="button"
+            className={styles.themeToggle}
+            onClick={toggleTheme}
+            aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+            title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+            data-testid="theme-toggle"
+          >
+            {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
+          <button
+            type="button"
             className={styles.logoutButton}
             onClick={() => setIsLogoutModalOpen(true)}
             aria-label="Log out"
             title="Sign out"
+            data-testid="logout-button"
           >
             <LogoutIcon />
           </button>

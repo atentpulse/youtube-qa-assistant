@@ -1,11 +1,12 @@
 {
-  "name": "youtube-qa-assistant",
+  "name": "vidmind",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Frontend for the YouTube Video Q&A Assistant - ask questions about any YouTube video and get timestamped answers.",
+  "description": "VidMind - ask your videos anything. AI-powered YouTube video Q&A with timestamped, cited answers.",
   "scripts": {
     "dev": "vite",
+    "start": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint src --ext .js,.jsx"

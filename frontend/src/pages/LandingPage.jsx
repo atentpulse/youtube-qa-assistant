@@ -7,7 +7,8 @@ import {
   Archive,
   Video,
   ArrowRight,
-  Play,
+  Github,
+  Linkedin,
   CheckCircle2,
   ExternalLink,
   Search,
@@ -63,16 +64,14 @@ export default function LandingPage() {
   };
 
   return (
-    <div className={styles.landing}>
+    <div className={`${styles.landing} force-light-theme`}>
       {/* ---- Navigation ---- */}
       <header className={styles.nav}>
         <div className={styles.navContainer}>
-          <Link to="/" className={styles.brand}>
-            <div className={styles.brandIcon} aria-hidden="true">
-              <Play size={14} fill="currentColor" />
-            </div>
+          <Link to="/" className={styles.brand} data-testid="header-brand">
+            <img src="/logo.svg" alt="VidMind logo" className={styles.brandLogo} />
             <span className={styles.brandName}>
-              Reel<span className={styles.brandAccent}>.</span>
+              VidMind<span className={styles.brandAccent}>.</span>
             </span>
           </Link>
 
@@ -97,10 +96,10 @@ export default function LandingPage() {
               </Link>
             ) : (
               <>
-                <Link to="/login" className={styles.navLink}>
+                <Link to="/login" className={styles.navLink} data-testid="nav-sign-in-link">
                   Sign in
                 </Link>
-                <Link to="/register" className={styles.navCta}>
+                <Link to="/register" className={styles.navCta} data-testid="nav-get-started-link">
                   Get Started
                 </Link>
               </>
@@ -129,12 +128,13 @@ export default function LandingPage() {
             className={styles.primaryCta}
             onClick={handleContinueWithGoogle}
             disabled={isRedirecting}
+            data-testid="hero-google-button"
           >
             {isRedirecting ? (
               <Spinner size={16} />
             ) : isAuthenticated ? (
               <>
-                Open Reel Workspace <ArrowRight size={16} />
+                Open VidMind Workspace <ArrowRight size={16} />
               </>
             ) : (
               <>
@@ -144,8 +144,8 @@ export default function LandingPage() {
           </button>
 
           {!isAuthenticated && (
-            <Link to="/register" className={styles.secondaryCta}>
-              Sign up with Email
+            <Link to="/login" className={styles.secondaryCta} data-testid="hero-signin-link">
+              Sign in
             </Link>
           )}
 
@@ -159,7 +159,7 @@ export default function LandingPage() {
         </div>
 
         {/* ---- Product Preview Mockup ---- */}
-        <div className={styles.previewWrapper} id="preview" aria-label="Reel Application Preview">
+        <div className={styles.previewWrapper} id="preview" aria-label="VidMind Application Preview">
           <div className={styles.previewBrowserBar}>
             <div className={styles.previewDots}>
               <span className={styles.previewDot} />
@@ -168,7 +168,7 @@ export default function LandingPage() {
             </div>
             <div className={styles.previewUrlBar}>
               <Search size={12} />
-              <span>app.reel.ai/workspace</span>
+              <span>app.vidmind.ai/workspace</span>
             </div>
           </div>
 
@@ -176,8 +176,8 @@ export default function LandingPage() {
             {/* Preview Left Sidebar */}
             <div className={styles.previewSidebar}>
               <div className={styles.previewSidebarBrand}>
-                <Play size={14} fill="currentColor" />
-                <span>Reel</span>
+                <img src="/logo.svg" alt="" className={styles.previewBrandLogo} />
+                <span>VidMind</span>
               </div>
 
               <div className={styles.previewNewChatBtn}>
@@ -244,7 +244,7 @@ export default function LandingPage() {
                 </div>
 
                 <div className={styles.previewAnswerCard}>
-                  <div className={styles.previewAiAvatar}>R</div>
+                  <div className={styles.previewAiAvatar}>V</div>
                   <div className={styles.previewAnswerBody}>
                     <p style={{ margin: 0, marginBottom: '8px' }}>
                       This video explains modern neural network architectures and memory bandwidth
@@ -298,7 +298,7 @@ export default function LandingPage() {
             </div>
             <h3 className={styles.featureTitle}>1. Ask anything</h3>
             <p className={styles.featureText}>
-              Ask questions about video content naturally. Reel searches transcript passages and
+              Ask questions about video content naturally. VidMind searches transcript passages and
               understands conversational nuance.
             </p>
           </div>
@@ -354,7 +354,7 @@ export default function LandingPage() {
         <div className={styles.howContainer}>
           <div className={styles.sectionHeader}>
             <div className={styles.sectionEyebrow}>Process</div>
-            <h2 className={styles.sectionTitle}>How Reel works</h2>
+            <h2 className={styles.sectionTitle}>How VidMind works</h2>
             <p className={styles.sectionDesc}>
               Three simple steps to unlock deep video insights without scrubbing through hours of
               footage.
@@ -366,14 +366,14 @@ export default function LandingPage() {
               <div className={styles.stepNumber}>01</div>
               <h3 className={styles.stepTitle}>Paste a YouTube video</h3>
               <p className={styles.stepDesc}>
-                Drop in any public YouTube video link. Reel retrieves metadata and prepares the
+                Drop in any public YouTube video link. VidMind retrieves metadata and prepares the
                 transcript for indexing.
               </p>
             </div>
 
             <div className={styles.stepCard}>
               <div className={styles.stepNumber}>02</div>
-              <h3 className={styles.stepTitle}>Reel processes it</h3>
+              <h3 className={styles.stepTitle}>VidMind processes it</h3>
               <p className={styles.stepDesc}>
                 The content is segmented and indexed into vector embeddings for precision retrieval
                 and context alignment.
@@ -394,7 +394,7 @@ export default function LandingPage() {
 
       {/* ---- Final CTA Section ---- */}
       <section className={styles.finalCtaSection}>
-        <h2 className={styles.finalCtaHeadline}>Start with Reel</h2>
+        <h2 className={styles.finalCtaHeadline}>Start with VidMind</h2>
         <p className={styles.finalCtaSubtitle}>
           Connect with your Google account or email to start processing videos and asking questions today.
         </p>
@@ -418,27 +418,100 @@ export default function LandingPage() {
             )}
           </button>
           {!isAuthenticated && (
-            <Link to="/register" className={styles.secondaryCta}>
-              Sign up with Email
+            <Link to="/login" className={styles.secondaryCta}>
+              Sign in
             </Link>
           )}
         </div>
       </section>
 
-      {/* ---- Footer ---- */}
+      {/* ---- Footer (the single landing-page footer) ---- */}
       <footer className={styles.footer}>
         <div className={styles.footerContainer}>
-          <div className={styles.footerBrand}>
-            <div className={styles.brandIcon} aria-hidden="true" style={{ width: 22, height: 22 }}>
-              <Play size={10} fill="currentColor" />
+          <div className={styles.footerGrid}>
+            <div className={styles.footerBrandCol}>
+              <div className={styles.footerBrand}>
+                <img src="/logo.svg" alt="VidMind logo" className={styles.footerLogo} />
+                <span className={styles.footerBrandName}>VidMind</span>
+              </div>
+              <p className={styles.footerTagline}>Turn videos into conversations.</p>
+              <div className={styles.footerSocial}>
+                <a
+                  href="https://github.com/rajashik-web"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.socialLink}
+                  aria-label="VidMind on GitHub"
+                  data-testid="footer-github-link"
+                >
+                  <Github size={16} />
+                </a>
+                <a
+                  href="https://www.linkedin.com/in/ashik-raj-000598396"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.socialLink}
+                  aria-label="VidMind on LinkedIn"
+                  data-testid="footer-linkedin-link"
+                >
+                  <Linkedin size={16} />
+                </a>
+              </div>
             </div>
-            <div>
-              <span className={styles.footerBrandName}>Reel</span>
-              <span className={styles.footerTagline}> — YouTube Video Q&amp;A Assistant</span>
+
+            <div className={styles.footerCol}>
+              <h3 className={styles.footerColTitle}>Product</h3>
+              <a
+                href="#features"
+                className={styles.footerLink}
+                onClick={(e) => scrollToSection(e, 'features')}
+              >
+                Features
+              </a>
+              <a
+                href="#how-it-works"
+                className={styles.footerLink}
+                onClick={(e) => scrollToSection(e, 'how-it-works')}
+              >
+                How it works
+              </a>
+              <Link to="/register" className={styles.footerLink}>
+                Get Started
+              </Link>
+            </div>
+
+            <div className={styles.footerCol}>
+              <h3 className={styles.footerColTitle}>Account</h3>
+              <Link to="/login" className={styles.footerLink} data-testid="footer-sign-in-link">
+                Sign in
+              </Link>
+              <Link to="/register" className={styles.footerLink}>
+                Create account
+              </Link>
+            </div>
+
+            <div className={styles.footerCol}>
+              <h3 className={styles.footerColTitle}>Resources</h3>
+              <a
+                href="#features"
+                className={styles.footerLink}
+                onClick={(e) => scrollToSection(e, 'features')}
+              >
+                YouTube Video Q&amp;A
+              </a>
+              <a
+                href="https://github.com/rajashik-web"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.footerLink}
+              >
+                Documentation
+              </a>
             </div>
           </div>
-          <div className={styles.footerMeta}>
-            Built with grounded transcripts &amp; precision timestamp indexing.
+
+          <div className={styles.footerBottom}>
+            <p className={styles.footerMeta}>© 2026 VidMind. All rights reserved.</p>
           </div>
         </div>
       </footer>

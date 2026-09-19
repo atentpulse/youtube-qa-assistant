@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { listVideos, processVideo as apiProcessVideo, deleteVideo as apiDeleteVideo } from '../api/videos';
 import { useAuth } from './AuthContext';
+import { VIDEO_STATUS } from '../utils/constants';
 
 const VideoLibraryContext = createContext(null);
 
@@ -27,10 +28,13 @@ export function VideoLibraryProvider({ children }) {
       setVideos(list);
       setLibraryStatus('ready');
       setSelectedVideoId((prev) => {
+        // Preserve the user's current selection only if it still exists.
+        // Never auto-select the first (or any) video after login/refresh —
+        // the user must explicitly choose a video from the library.
         if (prev && list.some((v) => v.video_id === prev)) {
           return prev;
         }
-        return list[0]?.video_id || null;
+        return null;
       });
     } catch (err) {
       setLibraryStatus('error');
@@ -41,6 +45,14 @@ export function VideoLibraryProvider({ children }) {
   useEffect(() => {
     fetchVideos();
   }, [fetchVideos]);
+
+  // Poll the library while any video is processing so ready/failed
+  // states appear without a manual reload.
+  useEffect(() => {
+    if (!videos.some((v) => v.status === VIDEO_STATUS.PROCESSING)) return undefined;
+    const interval = setInterval(fetchVideos, 5000);
+    return () => clearInterval(interval);
+  }, [videos, fetchVideos]);
 
   const selectVideo = useCallback((videoId) => {
     setSelectedVideoId(videoId);

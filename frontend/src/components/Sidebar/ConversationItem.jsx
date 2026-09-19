@@ -7,6 +7,7 @@ import styles from "./Sidebar.module.css";
 export default function ConversationItem({ conversation, isActive, onSelect }) {
   const { renameConversation, deleteConversation } = useConversations();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -15,16 +16,48 @@ export default function ConversationItem({ conversation, isActive, onSelect }) {
   );
   const inputRef = useRef(null);
   const menuRef = useRef(null);
+  const toggleRef = useRef(null);
+
+  // Position a fixed-position menu next to the ⋮ button so it is never
+  // clipped by the scrollable conversation list, never adds a scrollbar,
+  // and flips upward when near the bottom of the viewport.
+  const openMenu = () => {
+    const rect = toggleRef.current?.getBoundingClientRect();
+    if (rect) {
+      const MENU_W = 140;
+      const MENU_H = 92;
+      let top = rect.bottom + 4;
+      if (top + MENU_H > window.innerHeight - 8) {
+        top = rect.top - MENU_H - 4;
+      }
+      let left = rect.right - MENU_W;
+      if (left < 8) left = 8;
+      setMenuPos({ top, left });
+    }
+    setMenuOpen(true);
+  };
 
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!menuOpen) return undefined;
     const handleClickOutside = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(e.target) &&
+        toggleRef.current &&
+        !toggleRef.current.contains(e.target)
+      ) {
         setMenuOpen(false);
       }
     };
+    const closeOnMove = () => setMenuOpen(false);
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    window.addEventListener("scroll", closeOnMove, true);
+    window.addEventListener("resize", closeOnMove);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("scroll", closeOnMove, true);
+      window.removeEventListener("resize", closeOnMove);
+    };
   }, [menuOpen]);
 
   const handleStartEdit = (e) => {
@@ -97,22 +130,30 @@ export default function ConversationItem({ conversation, isActive, onSelect }) {
           </span>
         )}
 
-        <div className={styles.itemActions} ref={menuRef} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.itemActions} onClick={(e) => e.stopPropagation()}>
           <button
+            ref={toggleRef}
             type="button"
             className={styles.menuToggle}
-            onClick={() => setMenuOpen((v) => !v)}
+            onClick={() => (menuOpen ? setMenuOpen(false) : openMenu())}
             aria-label="Conversation options"
             aria-expanded={menuOpen}
+            data-testid="conversation-menu-toggle"
           >
             ⋮
           </button>
           {menuOpen && (
-            <div className={styles.dropdownMenu}>
+            <div
+              ref={menuRef}
+              className={`${styles.dropdownMenu} ${styles.dropdownMenuFixed}`}
+              style={{ top: menuPos.top, left: menuPos.left }}
+              data-testid="conversation-menu"
+            >
               <button
                 type="button"
                 className={styles.dropdownItem}
                 onClick={handleStartEdit}
+                data-testid="conversation-rename-button"
               >
                 Rename
               </button>
@@ -120,6 +161,7 @@ export default function ConversationItem({ conversation, isActive, onSelect }) {
                 type="button"
                 className={`${styles.dropdownItem} ${styles.dropdownItemDanger}`}
                 onClick={handleOpenDeleteModal}
+                data-testid="conversation-delete-button"
               >
                 Delete
               </button>

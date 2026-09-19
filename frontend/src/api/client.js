@@ -123,8 +123,12 @@ class ApiClient {
     }
 
     if (!response.ok) {
-      if (response.status === 401 && typeof this._onUnauthorized === 'function') {
-        this._onUnauthorized();
+      if (response.status === 401) {
+        if (typeof this._onUnauthorized === 'function') {
+          this._onUnauthorized();
+        }
+        // AuthContext listens for this window event to clear auth state.
+        window.dispatchEvent(new CustomEvent('auth:unauthorized'));
       }
       const message =
         (data && (data.detail || data.message || data.error)) ||

@@ -53,7 +53,7 @@ export default function OAuthCallbackPage() {
 
   if (errorMessage) {
     return (
-      <div className={styles.wrap}>
+      <div className={`${styles.wrap} force-light-theme`}>
         <div className={styles.card}>
           <h1 className={styles.title}>Sign in error</h1>
           <p className={styles.errorNotice}>{errorMessage}</p>
@@ -70,7 +70,7 @@ export default function OAuthCallbackPage() {
   }
 
   return (
-    <div className={styles.wrap}>
+    <div className={`${styles.wrap} force-light-theme`}>
       <div className={styles.card}>
         <Spinner size={32} />
         <p className={styles.body} style={{ marginTop: 16 }}>

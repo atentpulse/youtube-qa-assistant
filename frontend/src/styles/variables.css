@@ -45,6 +45,19 @@
   --focus-border: #64748b;
   --focus-ring: rgba(100, 116, 139, 0.15);
 
+  /* ---- Semantic surface/border tokens (theme-aware) ---- */
+  --surface-100: #f1f5f9;
+  --line-subtle: #e7e5e0;
+  --line-light: #e7e5e0;
+
+  /* ---- Q&A thread indicators (neutral/brand, never red) ---- */
+  --label-q-bg: #1c1917;
+  --label-a-bg: #4f46e5;
+  --btn-send-bg: #1c1917;
+  --btn-send-hover: #292524;
+
+  color-scheme: light;
+
   /* ---- Typography ---- */
   --font-display: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -64,6 +77,62 @@
   --shadow-lg: 0 12px 28px rgba(28, 25, 23, 0.09);
 
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ============================================================
+   Dark theme — overrides the existing token VALUES so every
+   component that already consumes them re-themes automatically.
+   Applied via <html data-theme="dark"> (set by ThemeContext).
+   ============================================================ */
+:root[data-theme="dark"] {
+  --ink-950: #0b1120;
+  --ink-900: #0f172a;
+  --ink-800: #1e293b;
+  --ink-700: #334155;
+  --ink-600: #475569;
+  --line-dark: #334155;
+
+  --paper-0: #1e293b;
+  --paper-50: #0f172a;
+  --paper-100: #334155;
+  --paper-200: #3e4c60;
+  --line: #334155;
+  --line-strong: #475569;
+
+  --text-900: #f1f5f9;
+  --text-800: #e2e8f0;
+  --text-700: #cbd5e1;
+  --text-600: #b4c0cf;
+  --text-500: #94a3b8;
+  --text-400: #7688a0;
+  --text-inverse: #f1f5f9;
+  --text-inverse-muted: #94a3b8;
+  --text-inverse-faint: #7688a0;
+
+  --success-600: #22c55e;
+  --success-100: #14321f;
+  --warning-600: #f59e0b;
+  --warning-100: #3a2c0a;
+  --danger-600: #f87171;
+  --danger-100: #3a1414;
+
+  --focus-border: #818cf8;
+  --focus-ring: rgba(129, 140, 248, 0.28);
+
+  --surface-100: #334155;
+  --line-subtle: #334155;
+  --line-light: #334155;
+
+  --label-q-bg: #475569;
+  --label-a-bg: #6366f1;
+  --btn-send-bg: #4f46e5;
+  --btn-send-hover: #6366f1;
+
+  --shadow-sm: 0 1px 2px rgba(2, 6, 23, 0.4);
+  --shadow-md: 0 4px 12px rgba(2, 6, 23, 0.45);
+  --shadow-lg: 0 12px 28px rgba(2, 6, 23, 0.55);
+
+  color-scheme: dark;
 }
 
 @media (prefers-reduced-motion: reduce) {

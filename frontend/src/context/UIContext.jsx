@@ -13,6 +13,11 @@ export function UIProvider({ children }) {
   const toggleSidebar = useCallback(() => setIsSidebarOpen((v) => !v), []);
   const closeSidebar = useCallback(() => setIsSidebarOpen(false), []);
 
+  // Mobile-named aliases for the same sidebar state — Sidebar.jsx and
+  // MainPanel.jsx consume these names (open/close on small screens).
+  const openMobileSidebar = useCallback(() => setIsSidebarOpen(true), []);
+  const closeMobileSidebar = useCallback(() => setIsSidebarOpen(false), []);
+
   return (
     <UIContext.Provider
       value={{
@@ -23,6 +28,9 @@ export function UIProvider({ children }) {
         isSidebarOpen,
         toggleSidebar,
         closeSidebar,
+        isMobileSidebarOpen: isSidebarOpen,
+        openMobileSidebar,
+        closeMobileSidebar,
       }}
     >
       {children}

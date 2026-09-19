@@ -34,19 +34,49 @@ export default function VideoLibraryItem({ video, isSelected }) {
   const { clearActiveConversation } = useConversations();
   const { closeComposer } = useUI();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const menuRef = useRef(null);
+  const toggleRef = useRef(null);
+
+  const openMenu = () => {
+    const rect = toggleRef.current?.getBoundingClientRect();
+    if (rect) {
+      const MENU_W = 140;
+      const MENU_H = 92;
+      let top = rect.bottom + 4;
+      if (top + MENU_H > window.innerHeight - 8) {
+        top = rect.top - MENU_H - 4;
+      }
+      let left = rect.right - MENU_W;
+      if (left < 8) left = 8;
+      setMenuPos({ top, left });
+    }
+    setMenuOpen(true);
+  };
 
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!menuOpen) return undefined;
     const handleClickOutside = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(e.target) &&
+        toggleRef.current &&
+        !toggleRef.current.contains(e.target)
+      ) {
         setMenuOpen(false);
       }
     };
+    const closeOnMove = () => setMenuOpen(false);
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    window.addEventListener("scroll", closeOnMove, true);
+    window.addEventListener("resize", closeOnMove);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("scroll", closeOnMove, true);
+      window.removeEventListener("resize", closeOnMove);
+    };
   }, [menuOpen]);
 
   const handleSelect = () => {
@@ -75,8 +105,11 @@ export default function VideoLibraryItem({ video, isSelected }) {
   const handleReprocess = async (e) => {
     e.stopPropagation();
     setMenuOpen(false);
-    if (!video.url) return;
-    await reprocessVideo(video.video_id, video.url);
+    // Video records don't store the original URL — rebuild it from the id.
+    await reprocessVideo(
+      video.video_id,
+      video.url || `https://www.youtube.com/watch?v=${video.video_id}`
+    );
   };
 
   const statusLabels = {
@@ -97,7 +130,7 @@ export default function VideoLibraryItem({ video, isSelected }) {
         aria-pressed={isSelected}
       >
         {video.thumbnail_url ? (
-          <img src={video.thumbnail_url} alt="" className={styles.itemThumb} />
+          <img src={video.thumbnail_url} alt="" className={styles.itemThumb} data-testid="sidebar-video-thumbnail" />
         ) : (
           <div className={styles.itemThumbFallback} aria-hidden="true">
             <Film size={14} />
@@ -117,21 +150,26 @@ export default function VideoLibraryItem({ video, isSelected }) {
 
         <div
           className={styles.itemActions}
-          ref={menuRef}
           onClick={(e) => e.stopPropagation()}
         >
           <button
+            ref={toggleRef}
             type="button"
             className={styles.menuToggle}
-            onClick={() => setMenuOpen((v) => !v)}
+            onClick={() => (menuOpen ? setMenuOpen(false) : openMenu())}
             aria-label="Video options"
             aria-expanded={menuOpen}
+            data-testid="video-menu-toggle"
           >
             ⋮
           </button>
           {menuOpen && (
-            <div className={styles.dropdownMenu}>
-              {video.status === VIDEO_STATUS.FAILED && video.url && (
+            <div
+              ref={menuRef}
+              className={`${styles.dropdownMenu} ${styles.dropdownMenuFixed}`}
+              style={{ top: menuPos.top, left: menuPos.left }}
+            >
+              {video.status === VIDEO_STATUS.FAILED && (
                 <button
                   type="button"
                   className={styles.dropdownItem}

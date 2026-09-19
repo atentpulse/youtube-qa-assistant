@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { getCurrentUser, loginWithCredentials, registerWithCredentials, refreshToken } from '../api/auth';
+import { apiClient } from '../api/client';
 import { getToken, setToken as persistToken, clearToken } from '../utils/tokenStorage';
 
 const AuthContext = createContext(null);
@@ -8,9 +9,9 @@ const AuthContext = createContext(null);
 // 'authenticated' — valid token + user loaded.
 // 'unauthenticated' — no token, or the token was rejected/cleared.
 //
-// This app uses Google-only authentication. There is no local
-// email/password login or registration — the only way to establish a
-// session is completeOAuthLogin(), called by OAuthCallbackPage once the
+// Sessions are established three ways: email/password login (JWT),
+// email registration followed by email verification + sign in, and
+// completeOAuthLogin(), called by OAuthCallbackPage once the
 // backend has redirected back with a JWT already issued.
 export function AuthProvider({ children }) {
   const [token, setTokenState] = useState(() => getToken());
@@ -33,6 +34,9 @@ export function AuthProvider({ children }) {
     }
 
     setTokenState(storedToken);
+    // Keep the API client's in-memory token in sync with persisted storage,
+    // otherwise the Authorization header is never attached after a reload.
+    apiClient.setToken(storedToken);
 
     try {
       const me = await getCurrentUser();
@@ -83,6 +87,7 @@ export function AuthProvider({ children }) {
   const completeOAuthLogin = useCallback(async (rawToken) => {
     persistToken(rawToken);
     setTokenState(rawToken);
+    apiClient.setToken(rawToken);
 
     try {
       const me = await getCurrentUser();
@@ -107,6 +112,7 @@ export function AuthProvider({ children }) {
     }
     persistToken(rawToken);
     setTokenState(rawToken);
+    apiClient.setToken(rawToken);
     if (res.user) {
       setUser(res.user);
       setAuthStatus('authenticated');
@@ -121,24 +127,11 @@ export function AuthProvider({ children }) {
   }, []);
 
   const register = useCallback(async ({ email, password, username }) => {
-    const res = await registerWithCredentials({ email, password, username });
-    const rawToken = res?.access_token || res?.token;
-    if (!rawToken) {
-      throw new Error('No access token returned by server.');
-    }
-    persistToken(rawToken);
-    setTokenState(rawToken);
-    if (res.user) {
-      setUser(res.user);
-      setAuthStatus('authenticated');
-      setSessionMessage(null);
-      return res.user;
-    }
-    const me = await getCurrentUser();
-    setUser(me);
-    setAuthStatus('authenticated');
-    setSessionMessage(null);
-    return me;
+    // Backend contract: POST /auth/register returns the created user and
+    // does NOT issue a JWT — the account must first be verified via the
+    // emailed link, then the user signs in. Never persist a token here.
+    const user = await registerWithCredentials({ email, password, username });
+    return user;
   }, []);
 
   const refreshSession = useCallback(async () => {
@@ -156,6 +149,7 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(() => {
     clearToken();
+    apiClient.clearToken();
     setTokenState(null);
     setUser(null);
     setAuthStatus('unauthenticated');

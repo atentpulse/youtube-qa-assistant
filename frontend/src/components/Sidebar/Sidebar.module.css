@@ -5,7 +5,6 @@
   width: 260px;
   min-width: 260px;
   height: 100%;
-  height: 100dvh;
   display: flex;
   flex-direction: column;
   background: var(--ink-950, #0f172a);
@@ -28,7 +27,7 @@
   width: 30px;
   height: 30px;
   border-radius: 8px;
-  background: var(--accent-600, #2563eb);
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -38,7 +37,7 @@
 .brandMarkImg {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   border-radius: 8px;
 }
 
@@ -259,6 +258,7 @@
 /* ---- Video list ---- */
 .listWrap {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 4px 8px;
 }
@@ -384,6 +384,16 @@
   padding: 4px;
   z-index: 100;
   min-width: 130px;
+}
+
+/* Fixed variant — positioned via inline top/left from the toggle's rect so
+   the menu escapes the scrollable list, never clips and never adds scroll. */
+.dropdownMenuFixed {
+  position: fixed;
+  right: auto;
+  top: auto;
+  width: 140px;
+  z-index: 9998;
 }
 
 .dropdownItem {
@@ -524,6 +534,24 @@
 }
 
 .logoutButton:hover {
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.themeToggle {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.themeToggle:hover {
   color: rgba(255, 255, 255, 0.9);
   background: rgba(255, 255, 255, 0.08);
 }
