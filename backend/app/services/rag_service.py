@@ -40,6 +40,11 @@ from app.services.reranker_service import (
     RerankerService,
 )
 
+from app.services.lock_service import (
+    VideoIngestionLock,
+)
+
+import threading
 import time
 
 
@@ -54,6 +59,9 @@ class RAGService:
         self.llm_service = LLMService()
 
         self.reranker_service = RerankerService()
+
+        self._in_flight_videos: set[str] = set()
+        self._in_flight_lock = threading.Lock()
 
         self.vector_store.create_collection(
             vector_size=384
@@ -76,56 +84,69 @@ class RAGService:
         video_storage = VideoStorageService(db)
 
         # --------------------------------
-        # 2. Check existing video
+        # 2. Check in-flight processing lock
         # --------------------------------
 
-        existing_video = video_storage.get_video(
-            video_id=video_id,
-            user_id=user_id,
-        )
+        with self._in_flight_lock:
+            is_in_flight = video_id in self._in_flight_videos
 
-        # --------------------------------
-        # 3. Already processed
-        # --------------------------------
-
-        if (
-            existing_video
-            and existing_video["status"] == "processed"
-            and not force_reprocess
-        ):
-
+        if is_in_flight or VideoIngestionLock.is_locked(db, video_id):
+            video_storage.link_user_to_video(
+                user_id=user_id,
+                video_id=video_id,
+            )
             return {
                 "video_id": video_id,
-                "segments": existing_video["segments"],
-                "chunks": existing_video["chunks"],
-                "status": "already_processed",
-            }
-
-        # --------------------------------
-        # 4. Already processing
-        # --------------------------------
-
-        if (
-            existing_video
-            and existing_video["status"] == "processing"
-        ):
-
-            return {
-                "video_id": video_id,
-                "segments": existing_video["segments"],
-                "chunks": existing_video["chunks"],
+                "segments": 0,
+                "chunks": 0,
                 "status": "already_processing",
             }
 
         # --------------------------------
-        # 5. Fetch video metadata
+        # 3. Check canonical video
+        # --------------------------------
+
+        canonical_video = video_storage.get_canonical_video(
+            video_id=video_id,
+        )
+
+        if canonical_video:
+            video_storage.link_user_to_video(
+                user_id=user_id,
+                video_id=video_id,
+            )
+
+            if (
+                canonical_video["status"] == "processed"
+                and not force_reprocess
+            ):
+                return {
+                    "video_id": video_id,
+                    "segments": canonical_video["segments"],
+                    "chunks": canonical_video["chunks"],
+                    "status": "already_processed",
+                }
+
+            if canonical_video["status"] == "processing":
+                return {
+                    "video_id": video_id,
+                    "segments": canonical_video["segments"],
+                    "chunks": canonical_video["chunks"],
+                    "status": "already_processing",
+                }
+
+        # --------------------------------
+        # 4. Fetch video metadata
         # --------------------------------
 
         metadata = fetch_video_metadata(video_id)
 
         # --------------------------------
-        # 6. Mark as processing
+        # 5. Acquire in-flight lock & mark processing
         # --------------------------------
+
+        with self._in_flight_lock:
+            self._in_flight_videos.add(video_id)
 
         video_storage.create_or_update_video(
             video_id=video_id,
@@ -149,6 +170,13 @@ class RAGService:
     ):
 
         db = SessionLocal()
+        lock = VideoIngestionLock(db, video_id)
+        if not lock.acquire():
+            print(
+                f"Video {video_id} is already being ingested by another process or worker; skipping background task."
+            )
+            db.close()
+            return
 
         try:
 
@@ -268,6 +296,10 @@ class RAGService:
 
         finally:
 
+            with self._in_flight_lock:
+                self._in_flight_videos.discard(video_id)
+
+            lock.release()
             db.close()
 
     def ask_question(
@@ -732,21 +764,32 @@ class RAGService:
             )
 
         # --------------------------------
-        # 2. Delete vectors from Qdrant
+        # 2. Check if other references exist
         # --------------------------------
 
-        self.vector_store.delete_video(
-            video_id
+        has_other_refs = video_storage.has_other_references(
+            video_id=video_id,
+            exclude_user_id=user_id,
         )
 
-        # --------------------------------
-        # 3. Delete cached answers
-        # --------------------------------
+        if not has_other_refs:
 
-        cache_service.delete_video_cache(video_id)
+            # --------------------------------
+            # Safe to delete vectors from Qdrant
+            # --------------------------------
+
+            self.vector_store.delete_video(
+                video_id
+            )
+
+            # --------------------------------
+            # Delete cached answers
+            # --------------------------------
+
+            cache_service.delete_video_cache(video_id)
 
         # --------------------------------
-        # 4. Delete metadata from PostgreSQL
+        # 3. Unlink/delete metadata from PostgreSQL
         # --------------------------------
 
         video_storage.delete_video(

@@ -22,11 +22,18 @@ from app.schemas.conversation import (
     ConversationDetailResponse,
     UpdateConversationRequest,
     PaginatedMessagesResponse,
+    SendMessageRequest,
+    SendMessageResponse,
 )
 
 from app.services.conversation_service import (
     ConversationService,
 )
+
+from app.services.rag_service import (
+    RAGService,
+)
+from app.dependencies import get_rag_service
 
 
 router = APIRouter(
@@ -59,6 +66,7 @@ def create_conversation(
             db=db,
             user_id=current_user.id,
             title=request.title,
+            video_id=request.video_id,
         )
     )
 
@@ -74,6 +82,9 @@ def create_conversation(
     response_model=list[ConversationResponse],
 )
 def get_conversations(
+    video_id: str | None = Query(
+        default=None,
+    ),
     db: Session = Depends(get_db),
     current_user: User = Depends(
         get_current_user
@@ -84,6 +95,7 @@ def get_conversations(
         conversation_service.get_user_conversations(
             db=db,
             user_id=current_user.id,
+            video_id=video_id,
         )
     )
 
@@ -155,6 +167,150 @@ def get_conversation_messages(
     return {
         "messages": messages,
         "next_cursor": next_cursor,
+    }
+
+
+# --------------------------------
+# Send message in conversation (RESTful endpoint)
+# --------------------------------
+
+@router.post(
+    "/{conversation_id}/messages",
+    response_model=SendMessageResponse,
+)
+def send_conversation_message(
+    conversation_id: int,
+    request: SendMessageRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        get_current_user
+    ),
+    rag_service: RAGService = Depends(
+        get_rag_service
+    ),
+):
+
+    question_text = request.content or request.question
+
+    if not question_text or not question_text.strip():
+
+        raise HTTPException(
+            status_code=400,
+            detail="Message content or question is required.",
+        )
+
+    question_text = question_text.strip()
+
+    # 1. Verify conversation ownership
+    conversation = conversation_service.get_conversation(
+        db=db,
+        conversation_id=conversation_id,
+        user_id=current_user.id,
+    )
+
+    if conversation is None:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Conversation not found.",
+        )
+
+    # 2. Determine target video ID
+    target_video_id = request.video_id or conversation.video_id
+
+    if not target_video_id:
+
+        raise HTTPException(
+            status_code=400,
+            detail="video_id must be provided or bound to this conversation.",
+        )
+
+    target_video_id = target_video_id.strip()
+
+    # 3. Check cross-video leakage
+    if conversation.video_id and conversation.video_id != target_video_id:
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Conversation is bound to video '{conversation.video_id}', "
+                f"cannot send messages for '{target_video_id}'."
+            ),
+        )
+
+    if not conversation.video_id:
+
+        conversation.video_id = target_video_id
+        db.commit()
+
+    # 4. Generate title if missing
+    if not conversation.title:
+
+        title = conversation_service.generate_title(question_text)
+        conversation_service.update_title(
+            db=db,
+            conversation_id=conversation.id,
+            title=title,
+        )
+
+    # 5. Build conversation context
+    recent_messages = conversation_service.get_recent_messages(
+        db=db,
+        conversation_id=conversation.id,
+        limit=6,
+    )
+
+    conversation_context = ""
+    for message in recent_messages:
+        conversation_context += f"{message.role.capitalize()}: {message.content}\n"
+
+    rewrite_context = ""
+    for message in recent_messages:
+        if message.role == "user":
+            rewrite_context += f"User: {message.content}\n"
+
+    # 6. Execute RAG
+    try:
+
+        rag_result = rag_service.ask_question(
+            db=db,
+            user_id=current_user.id,
+            video_id=target_video_id,
+            question=question_text,
+            conversation_context=conversation_context,
+            rewrite_context=rewrite_context,
+        )
+
+    except ValueError as error:
+
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        )
+
+    # 7. Persist user message
+    conversation_service.add_message(
+        db=db,
+        conversation_id=conversation.id,
+        role="user",
+        content=question_text,
+    )
+
+    # 8. Persist assistant message
+    assistant_msg = conversation_service.add_message(
+        db=db,
+        conversation_id=conversation.id,
+        role="assistant",
+        content=rag_result["answer"],
+    )
+
+    return {
+        "id": assistant_msg.id,
+        "conversation_id": conversation.id,
+        "role": "assistant",
+        "content": rag_result["answer"],
+        "sources": rag_result.get("sources", []),
+        "created_at": assistant_msg.created_at,
     }
 
 

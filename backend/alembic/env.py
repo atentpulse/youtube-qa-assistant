@@ -32,11 +32,11 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = config.get_main_option("sqlalchemy.url") or os.getenv("DATABASE_URL")
 
 if not DATABASE_URL:
     raise ValueError(
-        "DATABASE_URL is not set in the .env file"
+        "DATABASE_URL is not set in the .env file or alembic config"
     )
 
 
@@ -75,6 +75,7 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
+            render_as_batch=True,
         )
 
         with context.begin_transaction():

@@ -1,3 +1,4 @@
+import logging
 import os
 from pathlib import Path
 
@@ -9,6 +10,8 @@ from fastapi_mail import (
     MessageType,
 )
 
+logger = logging.getLogger(__name__)
+
 BASE_DIR = Path(__file__).resolve().parents[3]
 
 load_dotenv(
@@ -19,11 +22,14 @@ load_dotenv(
 class EmailService:
 
     def __init__(self):
+        has_credentials = bool(
+            os.getenv("MAIL_USERNAME") and os.getenv("MAIL_PASSWORD")
+        )
 
         self.config = ConnectionConfig(
             MAIL_USERNAME=os.getenv("MAIL_USERNAME"),
             MAIL_PASSWORD=os.getenv("MAIL_PASSWORD"),
-            MAIL_FROM=os.getenv("MAIL_FROM"),
+            MAIL_FROM=os.getenv("MAIL_FROM") or "noreply@vidmind.ai",
             MAIL_PORT=int(
                 os.getenv(
                     "MAIL_PORT",
@@ -44,18 +50,26 @@ class EmailService:
                 "False",
             ).lower()
             == "true",
-            USE_CREDENTIALS=True,
+            USE_CREDENTIALS=has_credentials,
             VALIDATE_CERTS=True,
         )
 
-        self.fastmail = FastMail(self.config)
+        if os.getenv("TESTING") == "1":
+            self.fastmail = None
+        elif self.config.USE_CREDENTIALS:
+            self.fastmail = FastMail(self.config)
+        else:
+            self.fastmail = None
+
+    @property
+    def is_configured(self) -> bool:
+        return self.fastmail is not None
 
     async def send_password_reset_email(
         self,
         email: str,
         reset_url: str,
-    ) -> None:
-
+    ) -> bool:
         message = MessageSchema(
             subject="Reset your YouTube Q&A Assistant password",
             recipients=[email],
@@ -79,15 +93,21 @@ YouTube Q&A Assistant
             subtype=MessageType.plain,
         )
 
-        await self.fastmail.send_message(message)
-        
+        if self.fastmail is not None:
+            await self.fastmail.send_message(message)
+            return True
+        else:
+            logger.info(
+                "SMTP client not configured; skipped delivering password reset email to %s",
+                email,
+            )
+            return False
 
     async def send_email_verification(
         self,
         email: str,
         verification_url: str,
-    ) -> None:
-
+    ) -> bool:
         message = MessageSchema(
             subject="Verify your YouTube Q&A Assistant email",
             recipients=[email],
@@ -100,7 +120,7 @@ Please verify your email address by clicking the link below:
 
 {verification_url}
 
-This verification link will expire soon.
+This link will expire soon.
 
 If you did not create this account,
 you can safely ignore this email.
@@ -111,6 +131,12 @@ YouTube Q&A Assistant
             subtype=MessageType.plain,
         )
 
-        await self.fastmail.send_message(
-            message
-        )
+        if self.fastmail is not None:
+            await self.fastmail.send_message(message)
+            return True
+        else:
+            logger.info(
+                "SMTP client not configured; skipped delivering verification email to %s",
+                email,
+            )
+            return False

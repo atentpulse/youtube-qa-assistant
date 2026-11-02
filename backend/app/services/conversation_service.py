@@ -21,11 +21,13 @@ class ConversationService:
         db: Session,
         user_id: int,
         title: str | None = None,
+        video_id: str | None = None,
     ) -> Conversation:
 
         conversation = Conversation(
             user_id=user_id,
             title=title,
+            video_id=video_id,
         )
 
         db.add(
@@ -49,13 +51,23 @@ class ConversationService:
         self,
         db: Session,
         user_id: int,
+        video_id: str | None = None,
     ) -> list[Conversation]:
 
-        conversations = (
+        query = (
             db.query(Conversation)
             .filter(
                 Conversation.user_id == user_id
             )
+        )
+
+        if video_id:
+            query = query.filter(
+                Conversation.video_id == video_id
+            )
+
+        conversations = (
+            query
             .order_by(
                 Conversation.updated_at.desc()
             )

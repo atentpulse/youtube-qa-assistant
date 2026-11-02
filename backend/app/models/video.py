@@ -19,10 +19,11 @@ class Video(Base):
         index=True,
     )
 
+    # user_id is now nullable to decouple canonical videos from a single owner
     user_id = Column(
         Integer,
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
         index=True,
     )
 
@@ -37,11 +38,11 @@ class Video(Base):
     )
 
     status = Column(
-    String(50),
-    nullable=False,
-    default="processing",
-    server_default="processing",
-)
+        String(50),
+        nullable=False,
+        default="processing",
+        server_default="processing",
+    )
 
     segments = Column(
         Integer,
@@ -70,7 +71,21 @@ class Video(Base):
         nullable=False,
     )
 
+    # Legacy relationship
     user = relationship(
         "User",
         back_populates="videos",
+    )
+
+    # Multi-user associations
+    user_videos = relationship(
+        "UserVideo",
+        back_populates="video",
+        cascade="all, delete-orphan",
+    )
+
+    # Associated conversations
+    conversations = relationship(
+        "Conversation",
+        back_populates="video",
     )

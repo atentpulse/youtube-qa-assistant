@@ -90,6 +90,27 @@ def ask_question(
                     detail="Conversation not found.",
                 )
 
+            # ----------------------------
+            # Verify video alignment
+            # ----------------------------
+
+            requested_video_id = request.video_id.strip()
+
+            if conversation.video_id and conversation.video_id != requested_video_id:
+
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"Conversation is bound to video '{conversation.video_id}', "
+                        f"cannot ask question for '{requested_video_id}'."
+                    ),
+                )
+
+            if not conversation.video_id:
+
+                conversation.video_id = requested_video_id
+                db.commit()
+
 
             # ----------------------------
             # Generate title if missing
@@ -197,6 +218,7 @@ def ask_question(
                     db=db,
                     user_id=current_user.id,
                     title=title,
+                    video_id=request.video_id.strip(),
                 )
             )
 

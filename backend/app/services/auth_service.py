@@ -193,7 +193,10 @@ class AuthService:
         if reset_token.used_at is not None:
             raise ValueError("Invalid or expired password reset token.")
 
-        if reset_token.expires_at <= now:
+        expires_at = reset_token.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if expires_at <= now:
             raise ValueError("Invalid or expired password reset token.")
 
         user = db.query(User).filter(User.id == reset_token.user_id).first()
@@ -265,7 +268,10 @@ class AuthService:
         if verification_token.used_at is not None:
             raise ValueError("Verification token has already been used.")
 
-        if verification_token.expires_at <= now:
+        expires_at = verification_token.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if expires_at <= now:
             raise ValueError("Verification token has expired.")
 
         user = db.query(User).filter(User.id == verification_token.user_id).first()

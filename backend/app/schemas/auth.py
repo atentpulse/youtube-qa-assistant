@@ -38,6 +38,13 @@ class TokenResponse(BaseModel):
 
     token_type: str = "bearer"
 
+    refresh_token: str | None = None
+
+
+class RefreshTokenRequest(BaseModel):
+
+    refresh_token: str | None = None
+
 
 class ForgotPasswordRequest(BaseModel):
 

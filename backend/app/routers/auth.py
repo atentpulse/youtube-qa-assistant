@@ -23,9 +23,11 @@ from app.schemas.auth import (
     LoginRequest,
     UserResponse,
     TokenResponse,
+    RefreshTokenRequest,
     ForgotPasswordRequest,
     ResetPasswordRequest,
 )
+from fastapi.security import HTTPAuthorizationCredentials
 
 from app.services.email_service import EmailService
 
@@ -35,6 +37,14 @@ from app.services.auth_service import (
 
 from app.auth.dependencies import (
     get_current_user,
+    optional_security,
+)
+from app.auth.jwt import (
+    create_access_token,
+    create_refresh_token,
+    decode_token,
+    JWTError,
+    ExpiredSignatureError,
 )
 
 
@@ -231,14 +241,19 @@ def login_user(
 
     try:
 
+        email = str(request.email).strip().lower()
         access_token = auth_service.login_user(
             db=db,
-            email=str(request.email).strip().lower(),
+            email=email,
             password=request.password,
         )
 
+        user = db.query(User).filter(User.email == email).first()
+        refresh_token = create_refresh_token(user.id) if user else None
+
         return {
             "access_token": access_token,
+            "refresh_token": refresh_token,
             "token_type": "bearer",
         }
 
@@ -248,6 +263,100 @@ def login_user(
             status_code=401,
             detail=str(error),
         )
+
+
+# --------------------------------
+# Refresh token
+# --------------------------------
+
+
+@router.post(
+    "/refresh",
+    response_model=TokenResponse,
+)
+def refresh_token(
+    request: RefreshTokenRequest | None = None,
+    credentials: HTTPAuthorizationCredentials | None = Depends(optional_security),
+    db: Session = Depends(get_db),
+):
+
+    user_id = None
+
+    # Option 1: Dedicated refresh token in request body
+    if request and request.refresh_token:
+        raw_token = request.refresh_token.strip()
+        try:
+            payload = decode_token(raw_token)
+        except ExpiredSignatureError:
+            raise HTTPException(
+                status_code=401,
+                detail="Refresh token has expired. Please sign in again.",
+            )
+        except JWTError:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid refresh token.",
+            )
+
+        if payload.get("type") != "refresh":
+            raise HTTPException(
+                status_code=401,
+                detail="Token is not a valid refresh token.",
+            )
+
+        sub = payload.get("sub")
+        if not sub:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid refresh token claims.",
+            )
+        user_id = int(sub)
+
+    # Option 2: Active Bearer token in header (existing frontend contract)
+    elif credentials and credentials.credentials:
+        raw_token = credentials.credentials.strip()
+        try:
+            payload = decode_token(raw_token)
+        except ExpiredSignatureError:
+            raise HTTPException(
+                status_code=401,
+                detail="Token has expired. Please sign in again.",
+            )
+        except JWTError:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid authentication token.",
+            )
+
+        sub = payload.get("sub")
+        if not sub:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token claims.",
+            )
+        user_id = int(sub)
+
+    else:
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required. Provide a refresh_token or active Bearer token.",
+        )
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="User associated with token no longer exists.",
+        )
+
+    new_access = create_access_token(user.id)
+    new_refresh = create_refresh_token(user.id)
+
+    return {
+        "access_token": new_access,
+        "refresh_token": new_refresh,
+        "token_type": "bearer",
+    }
 
 
 # --------------------------------

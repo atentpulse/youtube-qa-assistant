@@ -15,13 +15,11 @@ class Conversation(Base):
 
     __tablename__ = "conversations"
 
-
     id = Column(
         Integer,
         primary_key=True,
         index=True,
     )
-
 
     user_id = Column(
         Integer,
@@ -30,18 +28,23 @@ class Conversation(Base):
         index=True,
     )
 
+    # Scopes conversation strictly to a single YouTube video
+    video_id = Column(
+        String(20),
+        ForeignKey("videos.video_id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     title = Column(
         String(255),
         nullable=True,
     )
 
-
     created_at = Column(
         DateTime(timezone=True),
         server_default=func.now(),
     )
-
 
     updated_at = Column(
         DateTime(timezone=True),
@@ -49,12 +52,15 @@ class Conversation(Base):
         onupdate=func.now(),
     )
 
-
     user = relationship(
         "User",
         back_populates="conversations",
     )
 
+    video = relationship(
+        "Video",
+        back_populates="conversations",
+    )
 
     messages = relationship(
         "Message",

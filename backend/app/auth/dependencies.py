@@ -59,6 +59,13 @@ def get_current_user(
 
             raise credentials_exception
 
+        if payload.get("type") == "refresh":
+
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Refresh token cannot be used for API access. Use an access token.",
+            )
+
         user_id = int(
             user_id
         )

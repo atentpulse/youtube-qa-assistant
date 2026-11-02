@@ -22,12 +22,18 @@ class QdrantVectorStore:
 
     COLLECTION_NAME = "youtube_video_chunks"
 
-    def __init__(self):
+    def __init__(self, url: str | None = None, api_key: str | None = None):
 
-        self.client = QdrantClient(
-            url=os.getenv("QDRANT_URL"),
-            api_key=os.getenv("QDRANT_API_KEY"),
-        )
+        qdrant_url = url or os.getenv("QDRANT_URL")
+        qdrant_api_key = api_key or os.getenv("QDRANT_API_KEY")
+
+        if not qdrant_url or qdrant_url == ":memory:":
+            self.client = QdrantClient(location=":memory:")
+        else:
+            self.client = QdrantClient(
+                url=qdrant_url,
+                api_key=qdrant_api_key,
+            )
 
 
     def create_collection(
@@ -35,28 +41,24 @@ class QdrantVectorStore:
         vector_size: int = 384,
     ):
 
-        collections = (
-            self.client.get_collections()
-        )
+        try:
+            collections = self.client.get_collections()
+            collection_names = [
+                collection.name
+                for collection in collections.collections
+            ]
 
-        collection_names = [
-            collection.name
-            for collection in collections.collections
-        ]
-
-        if self.COLLECTION_NAME not in collection_names:
-
-            self.client.create_collection(
-                collection_name=self.COLLECTION_NAME,
-                vectors_config=VectorParams(
-                    size=vector_size,
-                    distance=Distance.COSINE,
-                ),
-            )
-
-            print(
-                "Collection created successfully!"
-            )
+            if self.COLLECTION_NAME not in collection_names:
+                self.client.create_collection(
+                    collection_name=self.COLLECTION_NAME,
+                    vectors_config=VectorParams(
+                        size=vector_size,
+                        distance=Distance.COSINE,
+                    ),
+                )
+                print("Collection created successfully!")
+        except Exception as error:
+            print(f"Warning: Could not initialize Qdrant collection on startup: {error}")
 
         else:
 
