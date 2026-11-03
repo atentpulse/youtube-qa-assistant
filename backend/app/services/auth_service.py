@@ -35,7 +35,16 @@ class AuthService:
         existing_user = db.query(User).filter(User.email == email).first()
 
         if existing_user:
-            raise ValueError("Email is already registered.")
+            if existing_user.email_verified:
+                raise ValueError("Email is already registered.")
+
+            # Unverified account retry: update credentials and allow re-registration
+            existing_user.username = username
+            existing_user.password_hash = hash_password(password)
+            existing_user.auth_provider = "local"
+            db.commit()
+            db.refresh(existing_user)
+            return existing_user
 
         # Hash password
         hashed_password = hash_password(password)

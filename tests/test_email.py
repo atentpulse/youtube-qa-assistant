@@ -1,6 +1,7 @@
 import logging
 import pytest
 from unittest.mock import AsyncMock, MagicMock
+from fastapi_mail.errors import ConnectionErrors
 from app.services.email_service import EmailService
 
 
@@ -61,3 +62,49 @@ async def test_email_configured_delivery():
     )
     assert res_verify is True
     assert mock_fastmail.send_message.call_count == 2
+
+
+def test_email_password_whitespace_sanitization(monkeypatch):
+    monkeypatch.setenv("MAIL_USERNAME", "sender@example.com")
+    monkeypatch.setenv("MAIL_PASSWORD", "  abcd efgh ijkl mnop  ")
+    monkeypatch.setenv("MAIL_PORT", "587")
+
+    service = EmailService()
+    raw_pw = service.config.MAIL_PASSWORD
+    actual_pw = raw_pw.get_secret_value() if hasattr(raw_pw, "get_secret_value") else raw_pw
+    assert actual_pw == "abcdefghijklmnop"
+    assert service.config.MAIL_USERNAME == "sender@example.com"
+
+
+def test_email_tls_protocol_by_port(monkeypatch):
+    monkeypatch.setenv("MAIL_USERNAME", "sender@example.com")
+    monkeypatch.setenv("MAIL_PASSWORD", "secretpassword123")
+
+    # Test port 465 forces SSL_TLS=True, STARTTLS=False
+    monkeypatch.setenv("MAIL_PORT", "465")
+    monkeypatch.setenv("MAIL_STARTTLS", "True")  # Misconfigured env should be corrected
+    monkeypatch.setenv("MAIL_SSL_TLS", "False")
+    service_465 = EmailService()
+    assert service_465.config.MAIL_PORT == 465
+    assert service_465.config.MAIL_SSL_TLS is True
+    assert service_465.config.MAIL_STARTTLS is False
+
+    # Test port 587 forces STARTTLS=True, SSL_TLS=False
+    monkeypatch.setenv("MAIL_PORT", "587")
+    monkeypatch.setenv("MAIL_STARTTLS", "False")  # Misconfigured env should be corrected
+    monkeypatch.setenv("MAIL_SSL_TLS", "True")
+    service_587 = EmailService()
+    assert service_587.config.MAIL_PORT == 587
+    assert service_587.config.MAIL_STARTTLS is True
+    assert service_587.config.MAIL_SSL_TLS is False
+
+
+@pytest.mark.asyncio
+async def test_email_exception_propagates():
+    service = EmailService()
+    mock_fastmail = MagicMock()
+    mock_fastmail.send_message = AsyncMock(side_effect=ConnectionErrors("Connection EOF"))
+    service.fastmail = mock_fastmail
+
+    with pytest.raises(ConnectionErrors):
+        await service.send_email_verification("user@example.com", "https://app.vidmind.ai/verify?token=xyz")

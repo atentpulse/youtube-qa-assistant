@@ -213,3 +213,187 @@ async def test_forgot_and_reset_password(async_client, db, test_user):
         },
     )
     assert login_response.status_code == 200
+
+@pytest.mark.asyncio
+async def test_register_smtp_failure_returns_503_and_allows_retry(async_client, db, monkeypatch):
+    import app.routers.auth as auth_router
+    from unittest.mock import AsyncMock
+    from fastapi_mail.errors import ConnectionErrors
+    from app.models.user import User
+
+    # 1. Simulate SMTP connection drop during verification email sending
+    monkeypatch.setattr(
+        auth_router.email_service,
+        "send_email_verification",
+        AsyncMock(side_effect=ConnectionErrors("Unexpected EOF received")),
+    )
+
+    reg_payload = {
+        "username": "unverifieduser",
+        "email": "unverified@example.com",
+        "password": "Password123!",
+    }
+    response = await async_client.post("/auth/register", json=reg_payload)
+    assert response.status_code == 503
+    assert "verification email could not be sent" in response.json()["detail"].lower()
+
+    # 2. Check user was persisted in DB with email_verified=False
+    user = db.query(User).filter(User.email == "unverified@example.com").first()
+    assert user is not None
+    assert user.email_verified is False
+
+    # 3. User can retry registration (with updated username/password)
+    # Restore working email service
+    monkeypatch.setattr(
+        auth_router.email_service,
+        "send_email_verification",
+        AsyncMock(return_value=True),
+    )
+
+    retry_payload = {
+        "username": "unverifieduser_updated",
+        "email": "unverified@example.com",
+        "password": "NewPassword456!",
+    }
+    retry_resp = await async_client.post("/auth/register", json=retry_payload)
+    assert retry_resp.status_code == 200
+    assert retry_resp.json()["username"] == "unverifieduser_updated"
+
+    # 4. Once verified, registration attempt MUST fail with 400
+    user.email_verified = True
+    db.commit()
+
+    dup_resp = await async_client.post("/auth/register", json=retry_payload)
+    assert dup_resp.status_code == 400
+    assert "already registered" in dup_resp.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_resend_verification_smtp_failure_returns_503(async_client, db, monkeypatch):
+    import app.routers.auth as auth_router
+    from unittest.mock import AsyncMock
+    from fastapi_mail.errors import ConnectionErrors
+    from app.models.user import User
+
+    # Create unverified user
+    unverified_user = User(
+        username="resenduser",
+        email="resenduser@example.com",
+        password_hash="fakehash",
+        email_verified=False,
+    )
+    db.add(unverified_user)
+    db.commit()
+
+    monkeypatch.setattr(
+        auth_router.email_service,
+        "send_email_verification",
+        AsyncMock(side_effect=ConnectionErrors("Connection timed out")),
+    )
+
+    response = await async_client.post(
+        "/auth/resend-verification",
+        json={"email": "resenduser@example.com"},
+    )
+    assert response.status_code == 503
+    assert "verification email could not be sent" in response.json()["detail"].lower()
+
+@pytest.mark.asyncio
+async def test_real_registration_to_verification_flow(async_client, db, monkeypatch):
+    import urllib.parse
+    import hashlib
+    from unittest.mock import AsyncMock
+    import app.routers.auth as auth_router
+    from app.models.user import User
+    from app.models.email_verification_token import EmailVerificationToken
+
+    # 1. Capture the exact email and verification_url sent to the email service
+    captured_calls = []
+
+    async def mock_send(email, verification_url):
+        captured_calls.append({"email": email, "url": verification_url})
+        return True
+
+    monkeypatch.setattr(auth_router.email_service, "send_email_verification", mock_send)
+
+    # 2. Register user
+    reg_email = "dynamic_user@example.com"
+    reg_password = "SecurePassword123!"
+    reg_response = await async_client.post(
+        "/auth/register",
+        json={
+            "username": "dynamicuser",
+            "email": reg_email,
+            "password": reg_password,
+        },
+    )
+    assert reg_response.status_code == 200
+    reg_data = reg_response.json()
+    assert reg_data["email"] == reg_email
+    assert reg_data["email_verified"] is False
+
+    # 3. Verify email service received the real unique token
+    assert len(captured_calls) == 1
+    call = captured_calls[0]
+    assert call["email"] == reg_email
+
+    parsed_url = urllib.parse.urlparse(call["url"])
+    assert parsed_url.path == "/verify-email"
+    query_params = urllib.parse.parse_qs(parsed_url.query)
+    assert "token" in query_params
+    actual_token = query_params["token"][0]
+
+    # Verify token is dynamically generated, cryptographically strong, and NOT a hardcoded test token
+    assert actual_token != "test_token_123"
+    assert len(actual_token) >= 40
+
+    # 4. Verify token hash was stored in database
+    expected_hash = hashlib.sha256(actual_token.encode("utf-8")).hexdigest()
+    token_record = (
+        db.query(EmailVerificationToken)
+        .filter(EmailVerificationToken.token_hash == expected_hash)
+        .first()
+    )
+    assert token_record is not None
+    assert token_record.user_id == reg_data["id"]
+    assert token_record.used_at is None
+
+    # 5. Attempt login before email verification -> MUST FAIL with 401
+    login_before = await async_client.post(
+        "/auth/login",
+        json={"email": reg_email, "password": reg_password},
+    )
+    assert login_before.status_code == 401
+    assert "verify your email" in login_before.json()["detail"].lower()
+
+    # 6. Attempt verification with a hardcoded test token -> MUST FAIL with 400
+    fake_verify = await async_client.get("/auth/verify-email?token=test_token_123")
+    assert fake_verify.status_code == 400
+    assert "invalid or expired" in fake_verify.json()["detail"].lower()
+
+    # 7. Verify using the actual dynamically generated token -> MUST SUCCEED with 200
+    real_verify = await async_client.get(f"/auth/verify-email?token={actual_token}")
+    assert real_verify.status_code == 200
+    assert "verified successfully" in real_verify.json()["message"].lower()
+
+    # 8. Check database state
+    db.refresh(token_record)
+    assert token_record.used_at is not None
+    user_in_db = db.query(User).filter(User.id == reg_data["id"]).first()
+    assert user_in_db.email_verified is True
+
+    # 9. Attempt verification again with the same token -> MUST FAIL with 400
+    reuse_verify = await async_client.get(f"/auth/verify-email?token={actual_token}")
+    assert reuse_verify.status_code == 400
+    assert "already been used" in reuse_verify.json()["detail"].lower()
+
+    # 10. Attempt login after verification -> MUST SUCCEED with 200
+    login_after = await async_client.post(
+        "/auth/login",
+        json={"email": reg_email, "password": reg_password},
+    )
+    assert login_after.status_code == 200
+    login_data = login_after.json()
+    assert "access_token" in login_data
+    assert "refresh_token" in login_data
+

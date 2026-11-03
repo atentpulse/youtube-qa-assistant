@@ -1,5 +1,9 @@
+import logging
 import os
 import urllib.parse
+from fastapi_mail.errors import ConnectionErrors
+
+logger = logging.getLogger(__name__)
 
 from fastapi import (
     APIRouter,
@@ -58,9 +62,12 @@ router = APIRouter(
 # Configuration
 # --------------------------------
 
-FRONTEND_URL = os.getenv(
-    "FRONTEND_URL",
-    "http://localhost:5173",
+from app.core import settings
+
+FRONTEND_URL = (
+    os.getenv("FRONTEND_URL")
+    or settings.FRONTEND_URL
+    or "http://localhost:3000"
 ).rstrip("/")
 
 
@@ -103,10 +110,37 @@ async def register_user(
             f"?token={raw_token}"
         )
 
-        await email_service.send_email_verification(
-            email=user.email,
-            verification_url=verification_url,
-        )
+        try:
+            await email_service.send_email_verification(
+                email=user.email,
+                verification_url=verification_url,
+            )
+        except ConnectionErrors as error:
+            logger.error(
+                "SMTP connection error sending verification email to %s: %s",
+                email,
+                type(error).__name__,
+            )
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "Account registered, but verification email could not be sent. "
+                    "Please check your email configuration or use resend verification."
+                ),
+            )
+        except Exception as error:
+            logger.error(
+                "Failed to send verification email to %s: %s",
+                email,
+                type(error).__name__,
+            )
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "Account registered, but verification email could not be sent. "
+                    "Please check your email configuration or use resend verification."
+                ),
+            )
 
         return user
 
@@ -212,10 +246,37 @@ async def resend_verification(
         f"?token={raw_token}"
     )
 
-    await email_service.send_email_verification(
-        email=user.email,
-        verification_url=verification_url,
-    )
+    try:
+        await email_service.send_email_verification(
+            email=user.email,
+            verification_url=verification_url,
+        )
+    except ConnectionErrors as error:
+        logger.error(
+            "SMTP connection error resending verification email to %s: %s",
+            email,
+            type(error).__name__,
+        )
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Verification email could not be sent due to an email service error. "
+                "Please try again later."
+            ),
+        )
+    except Exception as error:
+        logger.error(
+            "Failed to resend verification email to %s: %s",
+            email,
+            type(error).__name__,
+        )
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Verification email could not be sent due to an email service error. "
+                "Please try again later."
+            ),
+        )
 
     return {
         "message": (
@@ -557,10 +618,37 @@ async def forgot_password(
             f"?token={raw_token}"
         )
 
-        await email_service.send_password_reset_email(
-            email=user.email,
-            reset_url=reset_url,
-        )
+        try:
+            await email_service.send_password_reset_email(
+                email=user.email,
+                reset_url=reset_url,
+            )
+        except ConnectionErrors as error:
+            logger.error(
+                "SMTP connection error sending password reset email to %s: %s",
+                email,
+                type(error).__name__,
+            )
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "Password reset email could not be sent due to an email service error. "
+                    "Please try again later."
+                ),
+            )
+        except Exception as error:
+            logger.error(
+                "Failed to send password reset email to %s: %s",
+                email,
+                type(error).__name__,
+            )
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "Password reset email could not be sent due to an email service error. "
+                    "Please try again later."
+                ),
+            )
 
     return {
         "message": (

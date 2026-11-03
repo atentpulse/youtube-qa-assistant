@@ -1,4 +1,5 @@
-from pydantic import BaseModel, EmailStr, Field
+from datetime import datetime
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class RegisterRequest(BaseModel):
@@ -25,11 +26,17 @@ class LoginRequest(BaseModel):
 
 class UserResponse(BaseModel):
 
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
 
     username: str
 
     email: EmailStr
+
+    email_verified: bool = False
+
+    created_at: datetime | None = None
 
 
 class TokenResponse(BaseModel):

@@ -9,6 +9,9 @@ from fastapi_mail import (
     MessageSchema,
     MessageType,
 )
+from fastapi_mail.errors import ConnectionErrors
+
+from app.core import settings
 
 logger = logging.getLogger(__name__)
 
@@ -22,34 +25,56 @@ load_dotenv(
 class EmailService:
 
     def __init__(self):
-        has_credentials = bool(
-            os.getenv("MAIL_USERNAME") and os.getenv("MAIL_PASSWORD")
+        raw_username = os.getenv("MAIL_USERNAME") or settings.MAIL_USERNAME
+        mail_username = raw_username.strip() if raw_username else None
+        raw_password = os.getenv("MAIL_PASSWORD") or settings.MAIL_PASSWORD
+        # Sanitize whitespace/spaces from passwords (such as Google 4x4 app passwords)
+        mail_password = raw_password.strip().replace(" ", "") if raw_password else None
+        raw_from = os.getenv("MAIL_FROM") or settings.MAIL_FROM or "noreply@vidmind.ai"
+        mail_from = raw_from.strip()
+        raw_server = os.getenv("MAIL_SERVER") or settings.MAIL_SERVER or "smtp.gmail.com"
+        mail_server = raw_server.strip()
+
+        try:
+            port_val = os.getenv("MAIL_PORT") or settings.MAIL_PORT or "587"
+            mail_port = int(port_val)
+        except (ValueError, TypeError):
+            mail_port = 587
+
+        env_starttls = os.getenv("MAIL_STARTTLS")
+        raw_starttls = (
+            (env_starttls.lower() == "true")
+            if env_starttls is not None
+            else (settings.MAIL_STARTTLS if settings.MAIL_STARTTLS is not None else True)
+        )
+        env_ssl_tls = os.getenv("MAIL_SSL_TLS")
+        raw_ssl_tls = (
+            (env_ssl_tls.lower() == "true")
+            if env_ssl_tls is not None
+            else (settings.MAIL_SSL_TLS if settings.MAIL_SSL_TLS is not None else False)
         )
 
+        # Enforce valid TLS protocol per port to prevent mutually exclusive flag conflicts
+        if mail_port == 465:
+            mail_ssl_tls = True
+            mail_starttls = False
+        elif mail_port == 587:
+            mail_starttls = True
+            mail_ssl_tls = False
+        else:
+            mail_starttls = bool(raw_starttls)
+            mail_ssl_tls = bool(raw_ssl_tls)
+
+        has_credentials = bool(mail_username and mail_password)
+
         self.config = ConnectionConfig(
-            MAIL_USERNAME=os.getenv("MAIL_USERNAME"),
-            MAIL_PASSWORD=os.getenv("MAIL_PASSWORD"),
-            MAIL_FROM=os.getenv("MAIL_FROM") or "noreply@vidmind.ai",
-            MAIL_PORT=int(
-                os.getenv(
-                    "MAIL_PORT",
-                    "587",
-                )
-            ),
-            MAIL_SERVER=os.getenv(
-                "MAIL_SERVER",
-                "smtp.gmail.com",
-            ),
-            MAIL_STARTTLS=os.getenv(
-                "MAIL_STARTTLS",
-                "True",
-            ).lower()
-            == "true",
-            MAIL_SSL_TLS=os.getenv(
-                "MAIL_SSL_TLS",
-                "False",
-            ).lower()
-            == "true",
+            MAIL_USERNAME=mail_username,
+            MAIL_PASSWORD=mail_password,
+            MAIL_FROM=mail_from,
+            MAIL_PORT=mail_port,
+            MAIL_SERVER=mail_server,
+            MAIL_STARTTLS=mail_starttls,
+            MAIL_SSL_TLS=mail_ssl_tls,
             USE_CREDENTIALS=has_credentials,
             VALIDATE_CERTS=True,
         )
