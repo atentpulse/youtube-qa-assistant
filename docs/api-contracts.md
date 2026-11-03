@@ -303,3 +303,35 @@ All authenticated endpoints require an `Authorization: Bearer <access_token>` he
   }
   ```
   *(If `conversation_id` is omitted, auto-creates a new conversation bound to `video_id`.)*
+
+---
+
+## 5. Citations, Suggestions & Verification Matrix
+
+### 5.1 Citations vs. Follow-up Suggestions Policy
+- **Citations (`sources`)**: **Supported & Verified**. Both `POST /conversations/{conversation_id}/messages` and `POST /ask` return a `sources` array containing chunk citations with `start_time`, `end_time`, `start_time_formatted`, `end_time_formatted`, `url`, and `score`.
+- **Follow-up Suggestions**: **Not Supported**. Neither the backend schemas (`SendMessageResponse`, `AskQuestionResponse`) nor `RAGService` generate or return suggested follow-up questions. Clients must not depend on a `suggestions` or `follow_up_questions` field.
+
+### 5.2 API Verification & Contract Audit Matrix
+
+| Endpoint | Method | Auth | Primary Success Schema | Verified By | Status |
+| :--- | :---: | :---: | :--- | :--- | :---: |
+| `/auth/register` | `POST` | Public | `UserResponse` (`id`, `username`, `email`, `email_verified`, `created_at`) | Automated tests + source inspection | **VERIFIED** |
+| `/auth/login` | `POST` | Public | `TokenResponse` (`access_token`, `refresh_token`, `token_type`) | Automated tests + source inspection | **VERIFIED** |
+| `/auth/refresh` | `POST` | Flexible | `TokenResponse` (Dedicated body or active Bearer renewal) | Automated tests + source inspection | **VERIFIED** |
+| `/auth/me` | `GET` | Bearer | `UserResponse` | Automated tests + source inspection | **VERIFIED** |
+| `/users/me` | `GET` | Bearer | `UserResponse` (Alias) | Automated tests + source inspection | **VERIFIED** |
+| `/videos/process` | `POST` | Bearer | `ProcessVideoResponse` (`video_id`, `status`, `segments`, `chunks`) | Automated tests + Live Phase 2 verification | **VERIFIED** |
+| `/videos/{id}/status` | `GET` | Bearer | `VideoStatusResponse` | Automated tests + Live Phase 2 verification | **VERIFIED** |
+| `/videos` | `GET` | Bearer | `VideoListResponse` (`videos`, `total`) | Automated tests + source inspection | **VERIFIED** |
+| `/videos/{id}` | `DELETE`| Bearer | `{"status": "deleted", "video_id": "..."}` (Safe ref-counted) | Automated tests + source inspection | **VERIFIED** |
+| `/conversations` | `POST` | Bearer | `ConversationResponse` (`id`, `title`, `video_id`, timestamps) | Automated tests + Live Phase 2 verification | **VERIFIED** |
+| `/conversations` | `GET` | Bearer | `list[ConversationResponse]` (Supports optional `?video_id=`) | Automated tests + source inspection | **VERIFIED** |
+| `/conversations/{id}` | `GET` | Bearer | `ConversationDetailResponse` (`messages: list[MessageResponse]`) | Automated tests + source inspection | **VERIFIED** |
+| `/conversations/{id}/messages` | `GET` | Bearer | `PaginatedMessagesResponse` (`messages`, `next_cursor`) | Automated tests + source inspection | **VERIFIED** |
+| `/conversations/{id}/messages` | `POST` | Bearer | `SendMessageResponse` (`id`, `role`, `content`, `sources`, `created_at`) | Automated tests + Live Phase 2 verification | **VERIFIED** |
+| `/conversations/{id}` | `PATCH`| Bearer | `ConversationResponse` (Rename title) | Automated tests + source inspection | **VERIFIED** |
+| `/conversations/{id}` | `DELETE`| Bearer | `{"message": "Conversation deleted successfully."}` | Automated tests + source inspection | **VERIFIED** |
+| `/ask` | `POST` | Bearer | `AskQuestionResponse` (`answer`, `sources`, `conversation_id`) | Automated tests + Live Phase 2 verification | **VERIFIED** |
+| `/health` | `GET` | Public | `{"status": "healthy"}` | Automated tests + source inspection | **VERIFIED** |
+| `/` | `GET` | Public | `{"message": "YouTube Video Q&A Assistant API", "version": "2.0.0"}` | Automated tests + source inspection | **VERIFIED** |
