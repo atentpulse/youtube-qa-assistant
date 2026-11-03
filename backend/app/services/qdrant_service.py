@@ -22,7 +22,7 @@ class QdrantVectorStore:
 
     COLLECTION_NAME = "youtube_video_chunks"
 
-    def __init__(self, url: str | None = None, api_key: str | None = None):
+    def __init__(self, url: str | None = None, api_key: str | None = None, timeout: float = 60.0):
 
         qdrant_url = url or os.getenv("QDRANT_URL")
         qdrant_api_key = api_key or os.getenv("QDRANT_API_KEY")
@@ -33,6 +33,7 @@ class QdrantVectorStore:
             self.client = QdrantClient(
                 url=qdrant_url,
                 api_key=qdrant_api_key,
+                timeout=timeout,
             )
 
 
@@ -83,6 +84,7 @@ class QdrantVectorStore:
         self,
         embeddings,
         chunks,
+        batch_size: int = 64,
     ):
 
         points = []
@@ -105,11 +107,12 @@ class QdrantVectorStore:
 
             points.append(point)
 
-
-        self.client.upsert(
-            collection_name=self.COLLECTION_NAME,
-            points=points,
-        )
+        for i in range(0, len(points), batch_size):
+            batch = points[i : i + batch_size]
+            self.client.upsert(
+                collection_name=self.COLLECTION_NAME,
+                points=batch,
+            )
 
         print(
             f"{len(points)} chunks added to Qdrant!"

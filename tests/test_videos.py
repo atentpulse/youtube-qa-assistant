@@ -170,3 +170,113 @@ async def test_list_videos_endpoint(async_client, db, test_user, test_user_2, au
     video_ids2 = [v["video_id"] for v in vids2]
     assert "user2_only" in video_ids2
     assert "user1_only" not in video_ids2
+
+@pytest.mark.asyncio
+async def test_qdrant_add_documents_batching_and_timeout():
+    import numpy as np
+    from unittest.mock import MagicMock
+    from app.services.qdrant_service import QdrantVectorStore
+
+    # 1. Verify timeout configured on remote client
+    qs = QdrantVectorStore(url="http://mock-qdrant:6333", api_key="fake-key", timeout=45.0)
+    assert qs.client._client._timeout == 45
+
+    # 2. Test batching in add_documents
+    mock_client = MagicMock()
+    qs.client = mock_client
+
+    # Create 84 dummy chunks and embeddings (matching aZglGvBPQGs)
+    dummy_chunks = [
+        {
+            "video_id": "test_batch_vid",
+            "text": f"Chunk content {i}",
+            "start_time": float(i * 10),
+            "end_time": float((i + 1) * 10),
+        }
+        for i in range(84)
+    ]
+    dummy_embeddings = np.zeros((84, 384))
+
+    qs.add_documents(dummy_embeddings, dummy_chunks, batch_size=64)
+
+    # 84 chunks with batch_size=64 must result in 2 calls to upsert (64 points, then 20 points)
+    assert mock_client.upsert.call_count == 2
+    batch1 = mock_client.upsert.call_args_list[0][1]["points"]
+    batch2 = mock_client.upsert.call_args_list[1][1]["points"]
+    assert len(batch1) == 64
+    assert len(batch2) == 20
+    assert batch1[0].payload["video_id"] == "test_batch_vid"
+
+
+@pytest.mark.asyncio
+async def test_rag_process_video_background_timeout_failure_handling(db, test_user, monkeypatch, capsys):
+    from unittest.mock import MagicMock
+    from app.services.rag_service import RAGService
+    from app.services.video_storage_service import VideoStorageService
+    from app.models.video import Video
+    import app.services.rag_service as rag_service_mod
+
+    storage = VideoStorageService(db)
+    storage.create_or_update_video(
+        video_id="timeout_vid_123",
+        user_id=test_user.id,
+        status="processing",
+        title="Timeout Test",
+    )
+
+    rag = RAGService()
+    # Mock transcript fetching and embedding so we isolate add_documents
+    monkeypatch.setattr(rag_service_mod, "fetch_transcript", lambda vid: [{"text": "sample", "start": 0.0, "duration": 5.0}])
+    monkeypatch.setattr(rag_service_mod, "format_transcript", lambda t: [{"text": "sample", "start": 0.0, "duration": 5.0}])
+    monkeypatch.setattr(rag_service_mod, "create_chunks", lambda s, max_words=180: [{"text": "sample", "start_time": 0.0, "end_time": 5.0}])
+    rag.embedding_service.embed_documents = MagicMock(return_value=[[0.1] * 384])
+
+    # Mock add_documents to simulate remote write timeout
+    rag.vector_store.add_documents = MagicMock(side_effect=TimeoutError("The write operation timed out"))
+    rag.vector_store.video_exists = MagicMock(return_value=False)
+
+    monkeypatch.setattr(rag_service_mod, "SessionLocal", lambda: db)
+
+    # Must catch exception gracefully and not raise
+    rag.process_video_background("timeout_vid_123", test_user.id)
+
+    # Verify video was marked failed in DB
+    db.expire_all()
+    vid = db.query(Video).filter(Video.video_id == "timeout_vid_123").first()
+    assert vid.status == "failed"
+
+    # Verify exception was logged/printed without being swallowed
+    captured = capsys.readouterr()
+    assert "Video processing failed: The write operation timed out" in captured.out
+
+
+@pytest.mark.asyncio
+async def test_failed_video_can_be_retried(db, test_user):
+    from unittest.mock import MagicMock
+    from app.services.rag_service import RAGService
+    from app.services.video_storage_service import VideoStorageService
+    from app.models.video import Video
+
+    storage = VideoStorageService(db)
+    storage.create_or_update_video(
+        video_id="retry_vid_456",
+        user_id=test_user.id,
+        status="failed",
+        title="Failed Video",
+    )
+
+    rag = RAGService()
+    # Retrying a failed video must return status="processing" to trigger ingestion
+    result = rag.process_video(
+        db=db,
+        user_id=test_user.id,
+        url="https://www.youtube.com/watch?v=retry_vid_456",
+        force_reprocess=False,
+    )
+    assert result["status"] == "processing"
+
+    # In DB, video status should now be updated to processing
+    db.expire_all()
+    vid = db.query(Video).filter(Video.video_id == "retry_vid_456").first()
+    assert vid.status == "processing"
+

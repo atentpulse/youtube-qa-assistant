@@ -44,8 +44,11 @@ from app.services.lock_service import (
     VideoIngestionLock,
 )
 
+import logging
 import threading
 import time
+
+logger = logging.getLogger(__name__)
 
 
 class RAGService:
@@ -271,28 +274,45 @@ class RAGService:
 
         except Exception as error:
 
+            logger.error(
+                "Video processing failed for %s: %s",
+                video_id,
+                error,
+                exc_info=True,
+            )
             print(
                 f"Video processing failed: "
                 f"{error}"
             )
 
-            # Clean partial vectors
-
-            if self.vector_store.video_exists(
-                video_id
-            ):
-
-                self.vector_store.delete_video(
+            # Clean partial vectors safely
+            try:
+                if self.vector_store.video_exists(
                     video_id
+                ):
+                    self.vector_store.delete_video(
+                        video_id
+                    )
+            except Exception as clean_err:
+                logger.warning(
+                    "Failed to clean partial vectors for %s: %s",
+                    video_id,
+                    clean_err,
                 )
 
-            # Mark failed
-
-            video_storage.create_or_update_video(
-                video_id=video_id,
-                user_id=user_id,
-                status="failed",
-            )
+            # Mark failed in DB safely
+            try:
+                video_storage.create_or_update_video(
+                    video_id=video_id,
+                    user_id=user_id,
+                    status="failed",
+                )
+            except Exception as db_err:
+                logger.error(
+                    "Failed to mark video %s as failed in database: %s",
+                    video_id,
+                    db_err,
+                )
 
         finally:
 
