@@ -64,14 +64,14 @@ export default function LandingPage() {
   };
 
   return (
-    <div className={`${styles.landing} force-light-theme`}>
+    <div className={styles.landing}>
       {/* ---- Navigation ---- */}
       <header className={styles.nav}>
         <div className={styles.navContainer}>
           <Link to="/" className={styles.brand} data-testid="header-brand">
-            <img src="/logo.svg" alt="VidMind logo" className={styles.brandLogo} />
+            <div className={styles.brandLogoIcon}>▶</div>
             <span className={styles.brandName}>
-              VidMind<span className={styles.brandAccent}>.</span>
+              <span className={styles.brandYt}>Yt</span><span className={styles.brandGenius}>Genius</span>
             </span>
           </Link>
 
@@ -115,11 +115,15 @@ export default function LandingPage() {
           <span>YouTube Video Q&amp;A Assistant</span>
         </div>
 
-        <h1 className={styles.heroHeadline}>Talk to any YouTube video.</h1>
+        <h1 className={styles.heroHeadline}>
+          Understand More.
+          <br className={styles.headlineBreak} />
+          Watch Less.
+        </h1>
 
         <p className={styles.heroSubtitle}>
-          Turn long videos into conversations. Ask questions, understand the content, and jump
-          directly to the source.
+          Turn long videos into conversations. Ask questions, understand nuanced points, and jump
+          directly to exact timestamps.
         </p>
 
         <div className={styles.heroCtas}>
@@ -134,7 +138,7 @@ export default function LandingPage() {
               <Spinner size={16} />
             ) : isAuthenticated ? (
               <>
-                Open VidMind Workspace <ArrowRight size={16} />
+                Open YtGenius Workspace <ArrowRight size={16} />
               </>
             ) : (
               <>
@@ -158,17 +162,17 @@ export default function LandingPage() {
           </a>
         </div>
 
-        {/* ---- Product Preview Mockup ---- */}
-        <div className={styles.previewWrapper} id="preview" aria-label="VidMind Application Preview">
+        {/* ---- Product Preview Mockup (Illustrative Example) ---- */}
+        <div className={styles.previewWrapper} id="preview" aria-label="YtGenius Application Preview">
           <div className={styles.previewBrowserBar}>
             <div className={styles.previewDots}>
-              <span className={styles.previewDot} />
-              <span className={styles.previewDot} />
-              <span className={styles.previewDot} />
+              <span className={`${styles.previewDot} ${styles.dotRed}`} />
+              <span className={`${styles.previewDot} ${styles.dotYellow}`} />
+              <span className={`${styles.previewDot} ${styles.dotGreen}`} />
             </div>
             <div className={styles.previewUrlBar}>
               <Search size={12} />
-              <span>app.vidmind.ai/workspace</span>
+              <span>app.ytgenius.ai/workspace</span>
             </div>
           </div>
 
@@ -176,8 +180,10 @@ export default function LandingPage() {
             {/* Preview Left Sidebar */}
             <div className={styles.previewSidebar}>
               <div className={styles.previewSidebarBrand}>
-                <img src="/logo.svg" alt="" className={styles.previewBrandLogo} />
-                <span>VidMind</span>
+                <div className={styles.previewBrandBadge}>▶</div>
+                <span className={styles.previewBrand}>
+                  <span className={styles.brandYt}>Yt</span><span className={styles.brandGenius}>Genius</span>
+                </span>
               </div>
 
               <div className={styles.previewNewChatBtn}>
@@ -189,11 +195,11 @@ export default function LandingPage() {
                 <p className={styles.previewSidebarSectionTitle}>Conversations</p>
                 <div className={`${styles.previewSidebarItem} ${styles.previewSidebarItemActive}`}>
                   <MessageSquare size={13} />
-                  <span>Architecture deep dive</span>
+                  <span>Memory Bandwidth</span>
                 </div>
                 <div className={styles.previewSidebarItem}>
                   <MessageSquare size={13} />
-                  <span>Lecture takeaways</span>
+                  <span>Hardware Latency</span>
                 </div>
               </div>
 
@@ -203,12 +209,12 @@ export default function LandingPage() {
                   <div className={styles.previewThumb}>
                     <img
                       src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=80&q=80"
-                      alt="AI Hardware Course"
+                      alt="CS229 Seminar"
                     />
                   </div>
                   <div>
-                    <div style={{ fontSize: '12px', fontWeight: 600 }}>AI Hardware Course</div>
-                    <div style={{ fontSize: '11px', color: '#16a34a' }}>● Ready</div>
+                    <div style={{ fontSize: '12px', fontWeight: 600 }}>CS229 Seminar</div>
+                    <div style={{ fontSize: '11px', color: 'var(--success-500, #22c55e)' }}>● Ready</div>
                   </div>
                 </div>
               </div>
@@ -226,10 +232,10 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <div className={styles.previewHeaderTitle}>
-                      Applied Data Science &amp; Hardware
+                      Stanford CS229: Deep Learning &amp; Hardware Latency
                     </div>
-                    <div style={{ fontSize: '11.5px', color: 'var(--text-500)' }}>
-                      Stanford Seminar • 423 segments indexed
+                    <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
+                      Stanford University • 423 segments indexed
                     </div>
                   </div>
                 </div>
@@ -240,27 +246,28 @@ export default function LandingPage() {
 
               <div className={styles.previewChatFeed}>
                 <div className={styles.previewQuestion}>
-                  <span>What is this video about?</span>
+                  <span>What does the lecturer say about memory wall bottlenecks?</span>
                 </div>
 
                 <div className={styles.previewAnswerCard}>
-                  <div className={styles.previewAiAvatar}>V</div>
+                  <div className={styles.previewAiAvatar}>YG</div>
                   <div className={styles.previewAnswerBody}>
                     <p style={{ margin: 0, marginBottom: '8px' }}>
-                      This video explains modern neural network architectures and memory bandwidth
-                      trade-offs. The instructor breaks down why memory wall limitations dominate
-                      inference latency and walks through recent benchmark comparisons.
+                      The lecturer explains that memory wall bottlenecks occur when compute throughput
+                      outpaces DRAM bandwidth, forcing arithmetic logic units to idle during matrix
+                      multiplications. Recent high-bandwidth memory (HBM) architectures attempt to bridge
+                      this divergence.
                     </p>
                     <div className={styles.previewSourcesRow}>
                       <span className={styles.previewSourcesLabel}>Sources:</span>
                       <span className={styles.previewSourceChip}>
-                        00:04 <ExternalLink size={10} />
+                        ⏱ 04:12 <ExternalLink size={10} />
                       </span>
                       <span className={styles.previewSourceChip}>
-                        01:12 <ExternalLink size={10} />
+                        ⏱ 12:45 <ExternalLink size={10} />
                       </span>
                       <span className={styles.previewSourceChip}>
-                        04:58 <ExternalLink size={10} />
+                        ⏱ 18:30 <ExternalLink size={10} />
                       </span>
                     </div>
                   </div>
@@ -284,10 +291,10 @@ export default function LandingPage() {
       <section className={styles.featuresSection} id="features">
         <div className={styles.sectionHeader}>
           <div className={styles.sectionEyebrow}>Core Capabilities</div>
-          <h2 className={styles.sectionTitle}>Everything you need to digest videos in seconds</h2>
+          <h2 className={styles.sectionTitle}>Engineered for Deep Video Understanding</h2>
           <p className={styles.sectionDesc}>
-            Built specifically for lectures, podcasts, interviews, and deep tutorials that contain
-            hours of critical knowledge.
+            Built specifically for lectures, podcasts, technical interviews, and deep tutorials that
+            contain hours of critical knowledge.
           </p>
         </div>
 
@@ -298,7 +305,7 @@ export default function LandingPage() {
             </div>
             <h3 className={styles.featureTitle}>1. Ask anything</h3>
             <p className={styles.featureText}>
-              Ask questions about video content naturally. VidMind searches transcript passages and
+              Ask questions about video content naturally. YtGenius searches transcript passages and
               understands conversational nuance.
             </p>
           </div>
@@ -354,7 +361,7 @@ export default function LandingPage() {
         <div className={styles.howContainer}>
           <div className={styles.sectionHeader}>
             <div className={styles.sectionEyebrow}>Process</div>
-            <h2 className={styles.sectionTitle}>How VidMind works</h2>
+            <h2 className={styles.sectionTitle}>How YtGenius works</h2>
             <p className={styles.sectionDesc}>
               Three simple steps to unlock deep video insights without scrubbing through hours of
               footage.
@@ -366,14 +373,14 @@ export default function LandingPage() {
               <div className={styles.stepNumber}>01</div>
               <h3 className={styles.stepTitle}>Paste a YouTube video</h3>
               <p className={styles.stepDesc}>
-                Drop in any public YouTube video link. VidMind retrieves metadata and prepares the
+                Drop in any public YouTube video link. YtGenius retrieves metadata and prepares the
                 transcript for indexing.
               </p>
             </div>
 
             <div className={styles.stepCard}>
               <div className={styles.stepNumber}>02</div>
-              <h3 className={styles.stepTitle}>VidMind processes it</h3>
+              <h3 className={styles.stepTitle}>YtGenius processes it</h3>
               <p className={styles.stepDesc}>
                 The content is segmented and indexed into vector embeddings for precision retrieval
                 and context alignment.
@@ -394,7 +401,7 @@ export default function LandingPage() {
 
       {/* ---- Final CTA Section ---- */}
       <section className={styles.finalCtaSection}>
-        <h2 className={styles.finalCtaHeadline}>Start with VidMind</h2>
+        <h2 className={styles.finalCtaHeadline}>Start with YtGenius</h2>
         <p className={styles.finalCtaSubtitle}>
           Connect with your Google account or email to start processing videos and asking questions today.
         </p>
@@ -431,17 +438,19 @@ export default function LandingPage() {
           <div className={styles.footerGrid}>
             <div className={styles.footerBrandCol}>
               <div className={styles.footerBrand}>
-                <img src="/logo.svg" alt="VidMind logo" className={styles.footerLogo} />
-                <span className={styles.footerBrandName}>VidMind</span>
+                <div className={styles.brandLogoIconSmall}>▶</div>
+                <span className={styles.footerBrandName}>
+                  <span className={styles.brandYt}>Yt</span><span className={styles.brandGenius}>Genius</span>
+                </span>
               </div>
-              <p className={styles.footerTagline}>Turn videos into conversations.</p>
+              <p className={styles.footerTagline}>Turn YouTube videos into interactive knowledge.</p>
               <div className={styles.footerSocial}>
                 <a
                   href="https://github.com/rajashik-web"
                   target="_blank"
                   rel="noopener noreferrer"
                   className={styles.socialLink}
-                  aria-label="VidMind on GitHub"
+                  aria-label="YtGenius on GitHub"
                   data-testid="footer-github-link"
                 >
                   <Github size={16} />
@@ -451,7 +460,7 @@ export default function LandingPage() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className={styles.socialLink}
-                  aria-label="VidMind on LinkedIn"
+                  aria-label="YtGenius on LinkedIn"
                   data-testid="footer-linkedin-link"
                 >
                   <Linkedin size={16} />
@@ -511,7 +520,8 @@ export default function LandingPage() {
           </div>
 
           <div className={styles.footerBottom}>
-            <p className={styles.footerMeta}>© 2026 VidMind. All rights reserved.</p>
+            <p className={styles.footerMeta}>© 2026 YtGenius. All rights reserved.</p>
+            <p className={styles.footerMeta}>Built with React, FastAPI &amp; Qdrant.</p>
           </div>
         </div>
       </footer>

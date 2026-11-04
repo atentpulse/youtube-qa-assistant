@@ -1,26 +1,23 @@
-import React, { useEffect, useRef, useState } from "react";
-import { MessageSquare } from "lucide-react";
-import { useConversations } from "../../context/ConversationContext";
-import Modal from "../common/Modal";
-import styles from "./Sidebar.module.css";
+import React, { useEffect, useRef, useState } from 'react';
+import { MessageSquare } from 'lucide-react';
+import { useConversations } from '../../context/ConversationContext';
+import Modal from '../common/Modal';
+import Tooltip from '../common/Tooltip';
+import styles from './Sidebar.module.css';
 
-export default function ConversationItem({ conversation, isActive, onSelect }) {
+export default function ConversationItem({ conversation, isActive, onSelect, isCollapsed }) {
   const { renameConversation, deleteConversation } = useConversations();
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [editTitle, setEditTitle] = useState(
-    conversation.title || "Conversation",
-  );
+  const [editTitle, setEditTitle] = useState(conversation.title || 'Conversation');
   const inputRef = useRef(null);
   const menuRef = useRef(null);
   const toggleRef = useRef(null);
 
-  // Position a fixed-position menu next to the ⋮ button so it is never
-  // clipped by the scrollable conversation list, never adds a scrollbar,
-  // and flips upward when near the bottom of the viewport.
+  // Position fixed-position menu next to the ⋮ button so it is never clipped
   const openMenu = () => {
     const rect = toggleRef.current?.getBoundingClientRect();
     if (rect) {
@@ -50,13 +47,13 @@ export default function ConversationItem({ conversation, isActive, onSelect }) {
       }
     };
     const closeOnMove = () => setMenuOpen(false);
-    document.addEventListener("mousedown", handleClickOutside);
-    window.addEventListener("scroll", closeOnMove, true);
-    window.addEventListener("resize", closeOnMove);
+    document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('scroll', closeOnMove, true);
+    window.addEventListener('resize', closeOnMove);
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      window.removeEventListener("scroll", closeOnMove, true);
-      window.removeEventListener("resize", closeOnMove);
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', closeOnMove, true);
+      window.removeEventListener('resize', closeOnMove);
     };
   }, [menuOpen]);
 
@@ -64,7 +61,7 @@ export default function ConversationItem({ conversation, isActive, onSelect }) {
     e.stopPropagation();
     setMenuOpen(false);
     setIsEditing(true);
-    setEditTitle(conversation.title || "");
+    setEditTitle(conversation.title || '');
     setTimeout(() => inputRef.current?.select(), 0);
   };
 
@@ -77,8 +74,8 @@ export default function ConversationItem({ conversation, isActive, onSelect }) {
   };
 
   const handleEditKeyDown = (e) => {
-    if (e.key === "Enter") handleCommitEdit();
-    if (e.key === "Escape") setIsEditing(false);
+    if (e.key === 'Enter') handleCommitEdit();
+    if (e.key === 'Escape') setIsEditing(false);
   };
 
   const handleOpenDeleteModal = (e) => {
@@ -97,14 +94,34 @@ export default function ConversationItem({ conversation, isActive, onSelect }) {
     }
   };
 
+  if (isCollapsed) {
+    return (
+      <li
+        className={`${styles.conversationItemCollapsed} ${isActive ? styles.conversationItemActive : ''}`}
+        onClick={onSelect}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => e.key === 'Enter' && onSelect()}
+        aria-pressed={isActive}
+        aria-label={`Conversation: ${conversation.title || 'Conversation'}`}
+      >
+        <Tooltip content={conversation.title || 'Conversation'}>
+          <span className={styles.conversationIcon} aria-hidden="true">
+            <MessageSquare size={15} />
+          </span>
+        </Tooltip>
+      </li>
+    );
+  }
+
   return (
     <>
       <li
-        className={`${styles.conversationItem} ${isActive ? styles.conversationItemActive : ""}`}
+        className={`${styles.conversationItem} ${isActive ? styles.conversationItemActive : ''}`}
         onClick={!isEditing ? onSelect : undefined}
         role="button"
         tabIndex={0}
-        onKeyDown={(e) => !isEditing && e.key === "Enter" && onSelect()}
+        onKeyDown={(e) => !isEditing && e.key === 'Enter' && onSelect()}
         aria-pressed={isActive}
       >
         <span className={styles.conversationIcon} aria-hidden="true">
@@ -126,7 +143,7 @@ export default function ConversationItem({ conversation, isActive, onSelect }) {
           />
         ) : (
           <span className={styles.conversationTitle} title={conversation.title}>
-            {conversation.title || "Conversation"}
+            {conversation.title || 'Conversation'}
           </span>
         )}
 
@@ -181,7 +198,7 @@ export default function ConversationItem({ conversation, isActive, onSelect }) {
         onConfirm={handleConfirmDelete}
       >
         <p>
-          Are you sure you want to delete &ldquo;{conversation.title || "this conversation"}&rdquo;?
+          Are you sure you want to delete &ldquo;{conversation.title || 'this conversation'}&rdquo;?
           This action cannot be undone.
         </p>
       </Modal>

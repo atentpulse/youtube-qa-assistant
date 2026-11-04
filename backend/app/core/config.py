@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     )
 
     # Application
-    APP_NAME: str = "VidMind — YouTube Video Q&A Assistant"
+    APP_NAME: str = "YtGenius — YouTube Video Q&A Assistant"
     APP_VERSION: str = "2.0.0"
     ENVIRONMENT: str = "development"
 

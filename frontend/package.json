@@ -1,9 +1,9 @@
 {
-  "name": "vidmind",
+  "name": "ytgenius",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "VidMind - ask your videos anything. AI-powered YouTube video Q&A with timestamped, cited answers.",
+  "description": "YtGenius - ask your videos anything. AI-powered YouTube video Q&A with timestamped, cited answers.",
   "scripts": {
     "dev": "vite",
     "start": "vite",

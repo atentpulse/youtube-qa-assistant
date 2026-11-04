@@ -1,31 +1,25 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect } from 'react';
 
 const ThemeContext = createContext(null);
-const STORAGE_KEY = 'vidmind_theme';
-
-function getInitialTheme() {
-  if (typeof window === 'undefined') return 'light';
-  const stored = window.localStorage.getItem(STORAGE_KEY);
-  if (stored === 'dark') return 'dark';
-  // Light is the preferred VidMind default; dark is opt-in via the toggle.
-  return 'light';
-}
 
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState(getInitialTheme);
-
-  // Apply to <html> so token overrides cascade to the whole app.
+  // VidMind is strictly Dark Theme Only.
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    window.localStorage.setItem(STORAGE_KEY, theme);
-  }, [theme]);
+    document.documentElement.setAttribute('data-theme', 'dark');
+    try {
+      window.localStorage.setItem('vidmind_theme', 'dark');
+    } catch {
+      // Ignore storage write failures
+    }
+  }, []);
 
+  // No-op for compatibility if called anywhere
   const toggleTheme = useCallback(() => {
-    setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
+    // Permanently locked to dark theme
   }, []);
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, isDark: theme === 'dark' }}>
+    <ThemeContext.Provider value={{ theme: 'dark', toggleTheme, isDark: true }}>
       {children}
     </ThemeContext.Provider>
   );

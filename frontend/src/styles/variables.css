@@ -1,138 +1,154 @@
 :root {
-  /* ---- Color: ink (sidebar / dark accents) ---- */
-  --ink-950: #121316;
-  --ink-900: #18191f;
-  --ink-800: #22232a;
-  --ink-700: #2c2e37;
-  --ink-600: #3b3e4a;
-  --line-dark: #2a2c37;
+  /* ============================================================
+     YtGenius Dark Theme Tokens — YouTube-Inspired AI Video Research
+     Exclusively Dark Theme: Canvas #0F0F0F, Surfaces #181818, #212121, #272727
+     ============================================================ */
 
-  /* ---- Color: paper (warm off-white / clean surfaces) ---- */
-  --paper-0: #ffffff;
-  --paper-50: #fafaf8;
-  --paper-100: #f4f3ef;
-  --paper-200: #eceae3;
-  --line: #e7e5e0;
-  --line-strong: #d7d4cc;
+  /* 1. Background and Surface Colors (YouTube Neutral Dark Palette) */
+  --bg-canvas: #0f0f0f;
+  --bg-sidebar: #0f0f0f;
+  --bg-surface-1: #181818;
+  --bg-surface-2: #212121;
+  --bg-surface-3: #272727;
+  --bg-surface-glass: rgba(24, 24, 24, 0.85);
 
-  /* ---- Text (charcoal & neutral tones) ---- */
-  --text-900: #1c1917;
-  --text-800: #292524;
-  --text-700: #44403c;
-  --text-600: #57534e;
-  --text-500: #78716c;
-  --text-400: #a8a29e;
-  --text-inverse: #fafaf9;
-  --text-inverse-muted: #a8a29e;
-  --text-inverse-faint: #78716c;
+  /* Legacy surface tokens remapped to dark layers */
+  --paper-0: #181818;
+  --paper-50: #0f0f0f;
+  --paper-100: #212121;
+  --paper-200: #272727;
+  --surface-100: #212121;
 
-  /* ---- Accent: restrained red (YouTube / Reel recording red) ---- */
-  --accent-700: #b91c1c;
-  --accent-600: #dc2626;
-  --accent-500: #ef4444;
-  --accent-100: #fee2e2;
-  --accent-050: #fef2f2;
+  /* Legacy ink tokens remapped to dark layers */
+  --ink-950: #0a0a0a;
+  --ink-900: #0f0f0f;
+  --ink-800: #181818;
+  --ink-700: #212121;
+  --ink-600: #272727;
 
-  /* ---- Status ---- */
+  /* 2. Primary Brand & Accents (YouTube Red & YouTube Blue & YtGenius Palette) */
+  --accent-red: #ff0033;
+  --accent-blue: #3ea6ff;
+  --accent-blue-bg: rgba(62, 166, 255, 0.12);
+  --accent-blue-hover: rgba(62, 166, 255, 0.22);
+  --primary-400: #3ea6ff;
+  --primary-500: #ff0033;
+  --primary-600: #cc0029;
+  --primary-subtle: rgba(255, 0, 51, 0.12);
+
+  /* YtGenius Two-Tone Brand Identity */
+  --brand-yt: #f1f1f1;
+  --brand-genius: #d5c39f;
+  --brand-genius-hover: #e5d7b8;
+
+  /* Restrained accent tokens & aliases */
+  --accent-050: rgba(255, 0, 51, 0.08);
+  --accent-50: rgba(62, 166, 255, 0.12);
+  --accent-100: rgba(255, 0, 51, 0.18);
+  --accent-300: #3ea6ff;
+  --accent-500: #ff0033;
+  --accent-600: #cc0029;
+  --accent-700: #99001f;
+
+  /* Action buttons */
+  --label-q-bg: #212121;
+  --label-a-bg: #ff0033;
+  --btn-send-bg: #ff0033;
+  --btn-send-hover: #cc0029;
+
+  /* 3. Typography Colors (High-Contrast Dark Theme) */
+  --text-primary: #f1f1f1;
+  --text-secondary: #aaaaaa;
+  --text-muted: #aaaaaa;
+  --text-inverse: #0f0f0f;
+  --text-inverse-muted: #aaaaaa;
+  --text-inverse-faint: #717171;
+
+  /* Legacy numbered text tokens remapped */
+  --text-900: #f1f1f1;
+  --text-800: #e0e0e0;
+  --text-700: #cccccc;
+  --text-600: #aaaaaa;
+  --text-500: #aaaaaa;
+  --text-400: #888888;
+
+  /* 4. Borders and Focus States */
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-default: #303030;
+  --border-focus: #3ea6ff;
+  --border-glow: rgba(62, 166, 255, 0.3);
+
+  --focus-border: #3ea6ff;
+  --focus-ring: rgba(62, 166, 255, 0.25);
+
+  /* Legacy line tokens remapped */
+  --line: #303030;
+  --line-subtle: rgba(255, 255, 255, 0.08);
+  --line-light: #303030;
+  --line-strong: #3f3f3f;
+  --line-dark: #303030;
+
+  /* 5. Semantic Status Colors */
+  --success-400: #4ade80;
+  --success-500: #22c55e;
   --success-600: #16a34a;
-  --success-100: #dcfce7;
+  --success-100: rgba(34, 197, 94, 0.15);
+  --success-subtle: rgba(74, 222, 128, 0.12);
+
+  --warning-400: #fbbf24;
+  --warning-500: #f59e0b;
   --warning-600: #d97706;
-  --warning-100: #fef3c7;
+  --warning-100: rgba(245, 158, 11, 0.15);
+  --warning-subtle: rgba(251, 191, 36, 0.12);
+
+  --danger-400: #f87171;
+  --danger-500: #ef4444;
   --danger-600: #dc2626;
-  --danger-100: #fee2e2;
+  --danger-100: rgba(239, 68, 68, 0.15);
+  --danger-subtle: rgba(248, 113, 113, 0.12);
 
-  /* ---- Focus & borders ---- */
-  --focus-border: #64748b;
-  --focus-ring: rgba(100, 116, 139, 0.15);
-
-  /* ---- Semantic surface/border tokens (theme-aware) ---- */
-  --surface-100: #f1f5f9;
-  --line-subtle: #e7e5e0;
-  --line-light: #e7e5e0;
-
-  /* ---- Q&A thread indicators (neutral/brand, never red) ---- */
-  --label-q-bg: #1c1917;
-  --label-a-bg: #4f46e5;
-  --btn-send-bg: #1c1917;
-  --btn-send-hover: #292524;
-
-  color-scheme: light;
-
-  /* ---- Typography ---- */
+  /* 6. Typography Families */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-display: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+  --font-body: var(--font-sans);
+  --font-mono: 'JetBrains Mono', 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
 
-  /* ---- Layout ---- */
+  /* 7. Layout and Border Radii */
   --sidebar-width: 300px;
   --radius-xs: 4px;
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
   --radius-xl: 20px;
+  --radius-full: 9999px;
+  --radius-pill: 9999px;
 
-  /* ---- Shadows ---- */
-  --shadow-sm: 0 1px 2px rgba(28, 25, 23, 0.04);
-  --shadow-md: 0 4px 12px rgba(28, 25, 23, 0.06);
-  --shadow-lg: 0 12px 28px rgba(28, 25, 23, 0.09);
+  /* 8. Shadows and Elevation */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.65);
+  --shadow-glow: 0 0 16px rgba(255, 0, 51, 0.2);
 
+  /* 9. Transitions and Motion */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-/* ============================================================
-   Dark theme — overrides the existing token VALUES so every
-   component that already consumes them re-themes automatically.
-   Applied via <html data-theme="dark"> (set by ThemeContext).
-   ============================================================ */
-:root[data-theme="dark"] {
-  --ink-950: #0b1120;
-  --ink-900: #0f172a;
-  --ink-800: #1e293b;
-  --ink-700: #334155;
-  --ink-600: #475569;
-  --line-dark: #334155;
-
-  --paper-0: #1e293b;
-  --paper-50: #0f172a;
-  --paper-100: #334155;
-  --paper-200: #3e4c60;
-  --line: #334155;
-  --line-strong: #475569;
-
-  --text-900: #f1f5f9;
-  --text-800: #e2e8f0;
-  --text-700: #cbd5e1;
-  --text-600: #b4c0cf;
-  --text-500: #94a3b8;
-  --text-400: #7688a0;
-  --text-inverse: #f1f5f9;
-  --text-inverse-muted: #94a3b8;
-  --text-inverse-faint: #7688a0;
-
-  --success-600: #22c55e;
-  --success-100: #14321f;
-  --warning-600: #f59e0b;
-  --warning-100: #3a2c0a;
-  --danger-600: #f87171;
-  --danger-100: #3a1414;
-
-  --focus-border: #818cf8;
-  --focus-ring: rgba(129, 140, 248, 0.28);
-
-  --surface-100: #334155;
-  --line-subtle: #334155;
-  --line-light: #334155;
-
-  --label-q-bg: #475569;
-  --label-a-bg: #6366f1;
-  --btn-send-bg: #4f46e5;
-  --btn-send-hover: #6366f1;
-
-  --shadow-sm: 0 1px 2px rgba(2, 6, 23, 0.4);
-  --shadow-md: 0 4px 12px rgba(2, 6, 23, 0.45);
-  --shadow-lg: 0 12px 28px rgba(2, 6, 23, 0.55);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 350ms;
 
   color-scheme: dark;
+}
+
+/* Redundant fallback for [data-theme="dark"] to guarantee dark mode */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --brand-yt: #1c1917;
+  --brand-genius: #9e8a64;
+  --brand-genius-hover: #8a7752;
 }
 
 @media (prefers-reduced-motion: reduce) {

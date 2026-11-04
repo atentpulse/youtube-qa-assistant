@@ -85,6 +85,15 @@
   font-family: inherit;
 }
 
+/* The parent .inputWrap shows the single focus ring (focus-within);
+   suppress the inner input's own outline so only ONE border appears on focus. */
+.input:focus,
+.input:focus-visible {
+  outline: none;
+  border: none;
+  box-shadow: none;
+}
+
 .input::placeholder {
   color: var(--text-400);
 }

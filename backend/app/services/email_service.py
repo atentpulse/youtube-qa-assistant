@@ -30,7 +30,7 @@ class EmailService:
         raw_password = os.getenv("MAIL_PASSWORD") or settings.MAIL_PASSWORD
         # Sanitize whitespace/spaces from passwords (such as Google 4x4 app passwords)
         mail_password = raw_password.strip().replace(" ", "") if raw_password else None
-        raw_from = os.getenv("MAIL_FROM") or settings.MAIL_FROM or "noreply@vidmind.ai"
+        raw_from = os.getenv("MAIL_FROM") or settings.MAIL_FROM or "noreply@ytgenius.ai"
         mail_from = raw_from.strip()
         raw_server = os.getenv("MAIL_SERVER") or settings.MAIL_SERVER or "smtp.gmail.com"
         mail_server = raw_server.strip()
@@ -96,7 +96,7 @@ class EmailService:
         reset_url: str,
     ) -> bool:
         message = MessageSchema(
-            subject="Reset your YouTube Q&A Assistant password",
+            subject="Reset your YouTube Q&A Assistant password — YtGenius",
             recipients=[email],
             body=f"""
 Hello,
@@ -113,7 +113,7 @@ If you did not request a password reset,
 you can safely ignore this email.
 
 Regards,
-YouTube Q&A Assistant
+YtGenius Team
 """,
             subtype=MessageType.plain,
         )
@@ -134,12 +134,12 @@ YouTube Q&A Assistant
         verification_url: str,
     ) -> bool:
         message = MessageSchema(
-            subject="Verify your YouTube Q&A Assistant email",
+            subject="Verify your YouTube Q&A Assistant email — YtGenius",
             recipients=[email],
             body=f"""
 Hello,
 
-Welcome to YouTube Q&A Assistant.
+Welcome to YtGenius.
 
 Please verify your email address by clicking the link below:
 
@@ -151,7 +151,7 @@ If you did not create this account,
 you can safely ignore this email.
 
 Regards,
-YouTube Q&A Assistant
+YtGenius Team
 """,
             subtype=MessageType.plain,
         )

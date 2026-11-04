@@ -634,8 +634,24 @@ class RAGService:
                         )
                     ),
                     "score": result["score"],
+                    "text": result.get("text", ""),
                 }
             )
+
+        # Deduplicate sources by timestamp and sort chronologically
+        seen_timestamps = set()
+        deduped_sources = []
+        for src in sorted(sources, key=lambda s: s["start_time"]):
+            key = round(src["start_time"] / 2.0)
+            if key not in seen_timestamps:
+                seen_timestamps.add(key)
+                deduped_sources.append(src)
+        sources = deduped_sources
+
+        # Strip any accidental trailing "Sources: 1, 2" or "(Sources: ...)" from LLM answer
+        import re
+        answer = re.sub(r'(?i)\s*\(?sources:\s*[\d,\s]+\)?\s*$', '', answer).strip()
+        answer = re.sub(r'(?i)\n+sources:\s*[\d,\s]+$', '', answer).strip()
 
         # --------------------------------
         # 9. Save answer to cache

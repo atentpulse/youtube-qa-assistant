@@ -209,6 +209,16 @@ RULES:
 15. Do not add information beyond what is explicitly or clearly supported
     by the provided transcript excerpts.
 
+16. Return the answer string in the "answer" field. NEVER include phrases
+    like "Sources: 1, 2", "Sources:", or citation numbers inside the "answer"
+    string itself; citations must ONLY be listed in the "sources" integer array.
+17. Do not invent or misrecognize technical terms based on phonetic acoustic
+    similarity (e.g., do not confuse "CTE" or Common Table Expressions with
+    "city functions", and preserve technical keywords as taught in the video).
+18. If a topic is only partially covered in the transcript, state clearly what
+    the transcript explains and accurately note what is not mentioned,
+    rather than guessing or fabricating.
+
 Return exactly this structure:
 
 {

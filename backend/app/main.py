@@ -43,8 +43,8 @@ async def lifespan(app: FastAPI):
 # --------------------------------
 
 app = FastAPI(
-    title="YouTube Video Q&A Assistant",
-    description="VidMind 2.0 Backend API",
+    title="YtGenius — YouTube Video Q&A Assistant",
+    description="YtGenius 2.0 Backend API",
     version="2.0.0",
     lifespan=lifespan,
 )

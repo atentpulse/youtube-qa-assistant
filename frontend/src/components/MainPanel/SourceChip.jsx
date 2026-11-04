@@ -9,9 +9,13 @@ export default function SourceChip({ source, onSeek }) {
     }
   };
 
-  const label = source.start_time_formatted
+  const timeLabel = source.start_time_formatted
     ? `${source.start_time_formatted}${source.end_time_formatted ? ' - ' + source.end_time_formatted : ''}`
     : `${Math.floor(source.start_time || 0)}s`;
+
+  const tooltipText = source.text
+    ? `Jump to ${timeLabel}: "${source.text.slice(0, 140)}..."`
+    : `Jump to ${timeLabel} in video`;
 
   return (
     <a
@@ -21,9 +25,16 @@ export default function SourceChip({ source, onSeek }) {
       className={styles.sourceChip}
       data-testid="source-chip"
       onClick={handleClick}
-      title={source.text ? source.text.slice(0, 120) : 'Jump to timestamp'}
+      title={tooltipText}
+      aria-label={tooltipText}
     >
-      <span className={styles.sourceTime}>{label}</span>
+      <span className={styles.sourceChipIcon}>⏱</span>
+      <span className={styles.sourceTime}>{timeLabel}</span>
+      {source.text && (
+        <span className={styles.sourceSnippet}>
+          {source.text.slice(0, 24)}…
+        </span>
+      )}
     </a>
   );
 }

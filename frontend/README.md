@@ -1,4 +1,4 @@
-# Reel — YouTube Video Q&A Assistant (Frontend)
+# YtGenius — YouTube Video Q&A Assistant (Frontend)
 
 A production-quality React (JavaScript) frontend for a RAG-based YouTube video
 Q&A backend. Users add a YouTube link, wait for processing, then ask

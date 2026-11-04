@@ -1,10 +1,11 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>VidMind — Ask your videos anything</title>
-    <meta name="description" content="Ask questions about any YouTube video and get instant, timestamped answers." />
+    <title>YtGenius — Ask your videos anything</title>
+    <meta name="description" content="Ask questions about any YouTube video and get instant, timestamped answers with YtGenius." />
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="apple-touch-icon" href="/logo.png" />
@@ -19,16 +20,12 @@
   <body>
     <div id="root"></div>
     <script>
-      // Set the theme before React mounts to avoid a flash of the wrong theme.
-      (function () {
-        try {
-          var stored = localStorage.getItem('vidmind_theme');
-          var theme = stored === 'dark' ? 'dark' : 'light';
-          document.documentElement.setAttribute('data-theme', theme);
-        } catch (e) {
-          document.documentElement.setAttribute('data-theme', 'light');
-        }
-      })();
+      // Enforce Dark Theme Only before React mounts.
+      document.documentElement.setAttribute('data-theme', 'dark');
+      try {
+        localStorage.setItem('ytgenius_theme', 'dark');
+        localStorage.setItem('vidmind_theme', 'dark');
+      } catch (e) {}
     </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>

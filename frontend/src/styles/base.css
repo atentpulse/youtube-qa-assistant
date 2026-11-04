@@ -8,7 +8,11 @@ html,
 body,
 #root {
   height: 100%;
+  width: 100%;
   min-height: 100%;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
 }
 
 body {
@@ -16,8 +20,8 @@ body {
   font-family: var(--font-body);
   font-size: 15px;
   line-height: 1.55;
-  color: var(--text-900);
-  background: var(--paper-50);
+  color: var(--text-primary);
+  background: var(--bg-canvas);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -66,8 +70,12 @@ ol {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--line-strong);
+  background: var(--border-default);
   border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-focus);
 }
 
 ::-webkit-scrollbar-track {
@@ -75,7 +83,7 @@ ol {
 }
 
 :focus-visible {
-  outline: 2px solid var(--focus-border, #64748b);
+  outline: 2px solid var(--border-focus, #6366f1);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
@@ -94,12 +102,10 @@ ol {
 
 /* ============================================================
    Public marketing/auth pages (landing, login, OAuth callback)
-   always render in the light brand palette. They use fixed light
-   surfaces, so the app's dark-theme token overrides must not leak
-   in (which would put light text on white cards). This re-declares
-   the light token values for that subtree only.
+   Scoped to apply light token overrides ONLY when light theme is active.
+   When data-theme="dark" is active, tokens cascade normally.
    ============================================================ */
-.force-light-theme {
+:root[data-theme="light"] .force-light-theme {
   --ink-950: #121316;
   --ink-900: #18191f;
   --ink-800: #22232a;

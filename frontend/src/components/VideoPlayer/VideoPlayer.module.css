@@ -1,0 +1,280 @@
+/* ============================================================
+   VideoPlayer — 16:9 responsive embed stage & metadata
+   ============================================================ */
+.playerStage {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  background: var(--bg-surface-1, #181818);
+}
+
+/* 16:9 aspect ratio container */
+.embedContainer {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+  transition: opacity 0.2s ease;
+}
+
+.iframeHidden {
+  opacity: 0;
+}
+
+.embedSkeletonWrap {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+.playerSkeleton {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+}
+
+.embedStatePlaceholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  text-align: center;
+  gap: 12px;
+  color: var(--text-secondary, #aaaaaa);
+  background: var(--bg-surface-2, #212121);
+}
+
+.placeholderText {
+  font-size: 13px;
+  margin: 0;
+}
+
+.errorIcon {
+  color: var(--danger-600, #dc2626);
+}
+
+.retryBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg-surface-3, #272727);
+  color: var(--text-primary, #f1f1f1);
+  border: 1px solid var(--border-default, #303030);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.retryBtn:hover {
+  background: var(--border-default, #303030);
+}
+
+/* Metadata Details Card */
+.detailsCard {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.videoTitle {
+  font-size: 13.5px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--text-primary, #f1f1f1);
+  margin: 0;
+  word-break: break-word;
+}
+
+.statusBadge {
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: var(--bg-surface-2, #212121);
+  border: 1px solid var(--border-default, #303030);
+  flex-shrink: 0;
+}
+
+.statusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.actionsRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.actionBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 500;
+  background: var(--bg-surface-2, #212121);
+  color: var(--text-secondary, #aaaaaa);
+  border: 1px solid var(--border-default, #303030);
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  touch-action: manipulation;
+}
+
+.actionBtn:hover {
+  background: var(--bg-surface-3, #272727);
+  color: var(--text-primary, #f1f1f1);
+  border-color: var(--text-muted, #717171);
+}
+
+.textLinkBtn {
+  background: none;
+  border: none;
+  color: var(--text-muted, #717171);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 4px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.textLinkBtn:hover {
+  color: var(--text-secondary, #aaaaaa);
+}
+
+/* Restricted Embed Help Banner */
+.restrictedNotice {
+  background: var(--bg-surface-2, #212121);
+  border: 1px solid var(--border-default, #303030);
+  border-left: 3px solid var(--warning, #f59e0b);
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.restrictedHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary, #f1f1f1);
+}
+
+.warningIcon {
+  color: var(--warning, #f59e0b);
+  flex-shrink: 0;
+}
+
+.restrictedBody {
+  font-size: 11.5px;
+  color: var(--text-secondary, #aaaaaa);
+  line-height: 1.45;
+  margin: 0;
+}
+
+.restrictedAction {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  background: var(--accent-red, #ff0033);
+  color: #fff;
+  text-decoration: none;
+  transition: opacity 0.15s ease;
+}
+
+.restrictedAction:hover {
+  opacity: 0.9;
+}
+
+/* Mobile Quick Switch Button */
+.mobileResearchSwitch {
+  margin-top: 8px;
+  display: none;
+}
+
+.mobileSwitchBtn {
+  width: 100%;
+  padding: 10px 14px;
+  min-height: 44px;
+  border-radius: 8px;
+  background: var(--bg-surface-3, #272727);
+  border: 1px solid var(--border-default, #303030);
+  color: var(--text-primary, #f1f1f1);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  touch-action: manipulation;
+  transition: all 0.15s ease;
+}
+
+.mobileSwitchBtn:hover {
+  background: var(--border-default, #303030);
+}
+
+@media (max-width: 768px) {
+  .mobileResearchSwitch {
+    display: block;
+  }
+
+  .actionBtn {
+    min-height: 40px;
+    padding: 8px 14px;
+    font-size: 12px;
+  }
+
+  .restrictedAction {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 14px;
+  }
+}

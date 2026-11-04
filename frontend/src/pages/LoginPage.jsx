@@ -29,9 +29,9 @@ function GoogleIcon() {
   );
 }
 
-// VidMind uses Google as the ONLY sign-in method. This page presents a single
-// "Continue with Google" action that redirects to the existing backend OAuth
-// endpoint (GET /api/auth/google/login). No email/password UI is shown.
+// YtGenius uses Google as the primary sign-in method. This page presents a focused
+// "Continue with Google" action that redirects to the backend OAuth
+// endpoint (GET /api/auth/google/login).
 export default function LoginPage() {
   const { isAuthenticated, loading, sessionMessage, clearSessionMessage } = useAuth();
   const [searchParams] = useSearchParams();
@@ -42,7 +42,7 @@ export default function LoginPage() {
 
   if (loading) {
     return (
-      <div className={`${styles.wrap} force-light-theme`}>
+      <div className={styles.wrap}>
         <div className={styles.card}>
           <div className={styles.callbackStatus}>
             <Spinner size={24} />
@@ -63,16 +63,16 @@ export default function LoginPage() {
   };
 
   return (
-    <div className={`${styles.wrap} force-light-theme`}>
+    <div className={styles.wrap}>
       <div className={styles.card}>
         <Link to="/" className={styles.brandLink}>
-          <img src="/logo.svg" alt="VidMind logo" className={styles.brandLogoImg} />
+          <div className={styles.brandIcon}>▶</div>
           <span className={styles.brandName}>
-            VidMind<span className={styles.brandAccent}>.</span>
+            <span className={styles.brandYt}>Yt</span><span className={styles.brandGenius}>Genius</span>
           </span>
         </Link>
 
-        <h1 className={styles.title}>Welcome to VidMind</h1>
+        <h1 className={styles.title}>Welcome to YtGenius</h1>
         <p className={styles.body}>Ask questions about any YouTube video with AI.</p>
 
         {sessionMessage && <p className={styles.notice}>{sessionMessage}</p>}
@@ -106,7 +106,7 @@ export default function LoginPage() {
         <p className={styles.supportingText}>Sign in securely with your Google account.</p>
 
         <div className={styles.authInfoNotice}>
-          The same Google sign-in works for new and returning users. VidMind accesses only your
+          The same Google sign-in works for new and returning users. YtGenius accesses only your
           verified basic profile to identify your video library.
         </div>
       </div>

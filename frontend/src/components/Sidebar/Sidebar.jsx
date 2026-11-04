@@ -2,15 +2,15 @@ import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import VideoLibraryItem from './VideoLibraryItem';
 import ConversationItem from './ConversationItem';
-import Spinner from '../common/Spinner';
 import Modal from '../common/Modal';
-import { Moon, Sun } from 'lucide-react';
+import Tooltip from '../common/Tooltip';
+import Skeleton from '../common/Skeleton';
+import { MessageSquare, Film } from 'lucide-react';
 import { useVideoLibrary } from '../../context/VideoLibraryContext';
 import { useConversations } from '../../context/ConversationContext';
 import { useChat } from '../../context/ChatContext';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
-import { useTheme } from '../../context/ThemeContext';
 import { VIDEO_STATUS } from '../../utils/constants';
 import styles from './Sidebar.module.css';
 
@@ -56,16 +56,23 @@ export default function Sidebar() {
     clearActiveConversation,
   } = useConversations();
   const { clearThread } = useChat();
-  const { openComposer, closeComposer, isMobileSidebarOpen, closeMobileSidebar } = useUI();
+  const {
+    openComposer,
+    closeComposer,
+    isMobileSidebarOpen,
+    closeMobileSidebar,
+    isSidebarCollapsed,
+    toggleSidebarCollapse,
+  } = useUI();
   const { user, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   const filteredVideos = useMemo(() => {
     return videos.filter((v) => {
-      const matchesQuery = !query.trim() || (v.title || '').toLowerCase().includes(query.trim().toLowerCase());
+      const matchesQuery =
+        !query.trim() || (v.title || '').toLowerCase().includes(query.trim().toLowerCase());
       const matchesFilter =
         filter === 'all' ||
         v.status === filter ||
@@ -110,15 +117,53 @@ export default function Sidebar() {
         <div className={styles.backdrop} onClick={closeMobileSidebar} aria-hidden="true" />
       )}
 
-      <aside className={`${styles.sidebar} ${isMobileSidebarOpen ? styles.sidebarOpen : ''}`}>
-        <div className={styles.brand}>
-          <div className={styles.brandMark} aria-hidden="true">
-            <img src="/logo.svg" alt="" className={styles.brandMarkImg} />
-          </div>
-          <div>
-            <h1 className={styles.brandName}>VidMind</h1>
-            <p className={styles.brandSubtitle}>Video Q&A</p>
-          </div>
+      <aside
+        className={`${styles.sidebar} ${isSidebarCollapsed ? styles.sidebarCollapsed : ''} ${
+          isMobileSidebarOpen ? styles.sidebarOpen : ''
+        }`}
+        role="navigation"
+        aria-label="Workspace sidebar"
+      >
+        {/* ---- Brand & Collapse Row ---- */}
+        <div className={styles.brandRow}>
+          {isSidebarCollapsed ? (
+            <Tooltip content="Expand sidebar">
+              <button
+                type="button"
+                className={styles.brandIconBtnCollapsed}
+                onClick={toggleSidebarCollapse}
+                aria-label="Expand sidebar"
+                title="Expand sidebar"
+              >
+                ▶
+              </button>
+            </Tooltip>
+          ) : (
+            <>
+              <div className={styles.brandGroup}>
+                <div className={styles.brandIcon} aria-hidden="true">
+                  ▶
+                </div>
+                <div className={styles.brandText}>
+                  <span className={styles.brandName}>
+                    <span className={styles.brandYt}>Yt</span><span className={styles.brandGenius}>Genius</span>
+                  </span>
+                  <span className={styles.brandSubtitle}>AI Video Research</span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className={styles.collapseButton}
+                onClick={toggleSidebarCollapse}
+                aria-label="Collapse sidebar"
+                title="Collapse sidebar"
+              >
+                ◀
+              </button>
+            </>
+          )}
+
           <button
             type="button"
             className={styles.mobileCloseButton}
@@ -129,187 +174,286 @@ export default function Sidebar() {
           </button>
         </div>
 
-        {/* ---- + New Chat Primary Action ---- */}
-        <div className={styles.newVideoRow}>
-          <button
-            type="button"
-            className={styles.newVideoButton}
-            onClick={handleNewChat}
-            aria-label="Start a new chat"
-            data-testid="new-chat-button"
-          >
-            <PlusIcon />
-            + New Chat
-          </button>
-        </div>
-
-        {/* ---- Conversations section ---- */}
-        <div className={styles.sectionHeader}>
-          <span className={styles.sectionTitle}>Conversations</span>
-          <span className={styles.itemCount}>
-            {conversations.length > 0 ? `(${conversations.length})` : ''}
-          </span>
-        </div>
-
-        <div className={styles.conversationListWrap}>
-          {conversationsStatus === 'loading' && (
-            <div className={styles.stateBlock}>
-              <Spinner size={16} />
-              <p>Loading conversations…</p>
-            </div>
-          )}
-
-          {conversationsStatus === 'error' && (
-            <div className={styles.stateBlock}>
-              <p className={styles.stateError}>{conversationsError}</p>
-              <button type="button" className={styles.retryButton} onClick={loadConversations}>
-                Try again
+        {/* ---- Pinned Top Action: New Chat ---- */}
+        <div className={styles.pinnedActionWrap}>
+          {isSidebarCollapsed ? (
+            <Tooltip content="New Chat">
+              <button
+                type="button"
+                className={styles.newChatButtonCollapsed}
+                onClick={handleNewChat}
+                aria-label="Start a new chat"
+                data-testid="new-chat-button"
+              >
+                <PlusIcon />
               </button>
-            </div>
-          )}
-
-          {conversationsStatus === 'ready' && conversations.length === 0 && (
-            <div className={styles.stateBlock}>
-              <p className={styles.emptyBody}>No conversations yet. Ask a question to get started.</p>
-            </div>
-          )}
-
-          {conversations.length > 0 && (
-            <ul className={styles.conversationList}>
-              {conversations.map((conversation) => (
-                <ConversationItem
-                  key={conversation.id}
-                  conversation={conversation}
-                  isActive={conversation.id === activeConversationId}
-                  onSelect={() => handleSelectConversation(conversation.id)}
-                />
-              ))}
-            </ul>
+            </Tooltip>
+          ) : (
+            <button
+              type="button"
+              className={styles.newChatButton}
+              onClick={handleNewChat}
+              aria-label="Start a new chat"
+              data-testid="new-chat-button"
+            >
+              <PlusIcon />
+              <span>New Chat</span>
+            </button>
           )}
         </div>
 
-        {/* ---- Visual separation divider ---- */}
-        <div className={styles.sectionDivider} />
-
-        {/* ---- Video library section ---- */}
-        <div className={styles.sectionHeader}>
-          <span className={styles.sectionTitle}>Video Library</span>
-          <button
-            type="button"
-            className={styles.newChatButton}
-            onClick={handleNewVideo}
-            aria-label="Add a YouTube video"
-            title="Add video"
-            data-testid="add-video-button"
-          >
-            <PlusIcon />
-            Add video
-          </button>
-        </div>
-
-        {videos.length > 0 && (
-          <>
-            <div className={styles.searchRow}>
-              <input
-                type="search"
-                placeholder="Search your library…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className={styles.searchInput}
-                aria-label="Search video library"
-                data-testid="library-search-input"
-              />
-            </div>
-            <div className={styles.filterRow} role="tablist" aria-label="Filter by status">
-              {FILTERS.map((f) => (
+        {/* ---- Independently Scrollable Lists Container ---- */}
+        <div className={styles.scrollableBody}>
+          {isSidebarCollapsed && (
+            <div className={styles.collapsedNavRail}>
+              <Tooltip content="Conversations">
                 <button
-                  key={f.key}
                   type="button"
-                  role="tab"
-                  aria-selected={filter === f.key}
-                  className={`${styles.filterChip} ${filter === f.key ? styles.filterChipActive : ''}`}
-                  onClick={() => setFilter(f.key)}
+                  className={styles.collapsedNavBtn}
+                  onClick={toggleSidebarCollapse}
+                  aria-label="Conversations"
                 >
-                  {f.label}
+                  <MessageSquare size={16} />
                 </button>
-              ))}
-            </div>
-          </>
-        )}
-
-        <div className={styles.listWrap}>
-          {libraryStatus === 'loading' && (
-            <div className={styles.stateBlock}>
-              <Spinner size={18} />
-              <p>Loading your library…</p>
+              </Tooltip>
+              <Tooltip content="Video Library">
+                <button
+                  type="button"
+                  className={styles.collapsedNavBtn}
+                  onClick={toggleSidebarCollapse}
+                  aria-label="Video Library"
+                >
+                  <Film size={16} />
+                </button>
+              </Tooltip>
+              <Tooltip content="Add YouTube Video">
+                <button
+                  type="button"
+                  className={styles.collapsedNavBtn}
+                  onClick={handleNewVideo}
+                  aria-label="Add YouTube Video"
+                >
+                  <PlusIcon />
+                </button>
+              </Tooltip>
+              <div className={styles.collapsedRailDivider} />
             </div>
           )}
 
-          {libraryStatus === 'error' && (
-            <div className={styles.stateBlock}>
-              <p className={styles.stateError}>{libraryError}</p>
-              <button type="button" className={styles.retryButton} onClick={fetchVideos}>
-                Try again
+          {/* ---- Conversations Section ---- */}
+          {!isSidebarCollapsed && (
+            <div className={styles.sectionHeader}>
+              <span className={styles.sectionTitle}>Conversations</span>
+              <span className={styles.itemCount}>
+                {conversations.length > 0 ? `(${conversations.length})` : ''}
+              </span>
+            </div>
+          )}
+
+          <div className={styles.conversationListWrap}>
+            {conversationsStatus === 'loading' && (
+              <div className={styles.skeletonList}>
+                <Skeleton height={30} borderRadius={6} style={{ marginBottom: 6 }} />
+                <Skeleton height={30} borderRadius={6} style={{ marginBottom: 6 }} />
+              </div>
+            )}
+
+            {conversationsStatus === 'error' && (
+              <div className={styles.stateBlock}>
+                {!isSidebarCollapsed && (
+                  <>
+                    <p className={styles.stateError}>{conversationsError}</p>
+                    <button
+                      type="button"
+                      className={styles.retryButton}
+                      onClick={loadConversations}
+                    >
+                      Try again
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+
+            {conversationsStatus === 'ready' && conversations.length === 0 && !isSidebarCollapsed && (
+              <div className={styles.stateBlock}>
+                <p className={styles.emptyBody}>
+                  No conversations yet. Ask a question to get started.
+                </p>
+              </div>
+            )}
+
+            {conversations.length > 0 && (
+              <ul className={styles.conversationList}>
+                {conversations.map((conversation) => (
+                  <ConversationItem
+                    key={conversation.id}
+                    conversation={conversation}
+                    isActive={conversation.id === activeConversationId}
+                    onSelect={() => handleSelectConversation(conversation.id)}
+                    isCollapsed={isSidebarCollapsed}
+                  />
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className={styles.sectionDivider} />
+
+          {/* ---- Video Library Section ---- */}
+          {!isSidebarCollapsed && (
+            <div className={styles.sectionHeader}>
+              <span className={styles.sectionTitle}>Video Library</span>
+              <button
+                type="button"
+                className={styles.addVideoButton}
+                onClick={handleNewVideo}
+                aria-label="Add a YouTube video"
+                title="Add video"
+                data-testid="add-video-button"
+              >
+                <PlusIcon />
+                Add
               </button>
             </div>
           )}
 
-          {libraryStatus === 'ready' && videos.length === 0 && (
-            <div className={styles.stateBlock}>
-              <p className={styles.emptyTitle}>No videos yet</p>
-              <p className={styles.emptyBody}>Add a YouTube video to start asking questions.</p>
-            </div>
+          {videos.length > 0 && !isSidebarCollapsed && (
+            <>
+              <div className={styles.searchRow}>
+                <input
+                  type="search"
+                  placeholder="Search your library…"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className={styles.searchInput}
+                  aria-label="Search video library"
+                  data-testid="library-search-input"
+                />
+              </div>
+              <div className={styles.filterRow} role="tablist" aria-label="Filter by status">
+                {FILTERS.map((f) => (
+                  <button
+                    key={f.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={filter === f.key}
+                    className={`${styles.filterChip} ${
+                      filter === f.key ? styles.filterChipActive : ''
+                    }`}
+                    onClick={() => setFilter(f.key)}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </>
           )}
 
-          {libraryStatus === 'ready' && videos.length > 0 && filteredVideos.length === 0 && (
-            <div className={styles.stateBlock}>
-              <p className={styles.emptyBody}>No videos match your search.</p>
-            </div>
-          )}
+          <div className={styles.listWrap}>
+            {libraryStatus === 'loading' && (
+              <div className={styles.skeletonList}>
+                <Skeleton height={36} borderRadius={6} style={{ marginBottom: 6 }} />
+                <Skeleton height={36} borderRadius={6} style={{ marginBottom: 6 }} />
+              </div>
+            )}
 
-          {filteredVideos.length > 0 && (
-            <ul className={styles.list}>
-              {filteredVideos.map((video) => (
-                <VideoLibraryItem key={video.video_id} video={video} isSelected={video.video_id === selectedVideoId} />
-              ))}
-            </ul>
-          )}
+            {libraryStatus === 'error' && (
+              <div className={styles.stateBlock}>
+                {!isSidebarCollapsed && (
+                  <>
+                    <p className={styles.stateError}>{libraryError}</p>
+                    <button type="button" className={styles.retryButton} onClick={fetchVideos}>
+                      Try again
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+
+            {libraryStatus === 'ready' && videos.length === 0 && !isSidebarCollapsed && (
+              <div className={styles.stateBlock}>
+                <p className={styles.emptyTitle}>No videos yet</p>
+                <p className={styles.emptyBody}>Add a YouTube video to start asking questions.</p>
+              </div>
+            )}
+
+            {libraryStatus === 'ready' &&
+              videos.length > 0 &&
+              filteredVideos.length === 0 &&
+              !isSidebarCollapsed && (
+                <div className={styles.stateBlock}>
+                  <p className={styles.emptyBody}>No videos match search.</p>
+                </div>
+              )}
+
+            {filteredVideos.length > 0 && (
+              <ul className={styles.list}>
+                {filteredVideos.map((video) => (
+                  <VideoLibraryItem
+                    key={video.video_id}
+                    video={video}
+                    isSelected={video.video_id === selectedVideoId}
+                    isCollapsed={isSidebarCollapsed}
+                  />
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
 
+        {/* ---- Pinned Bottom Footer: User & Controls ---- */}
         <div className={styles.accountFooter}>
-          <div className={styles.accountInfo}>
-            <div className={styles.accountAvatar} aria-hidden="true">
-              {(user?.username || user?.email || '?').charAt(0).toUpperCase()}
+          {isSidebarCollapsed ? (
+            <div className={styles.collapsedFooter}>
+              <Tooltip content={user?.email || user?.username || 'Account'}>
+                <div className={styles.accountAvatar} aria-hidden="true">
+                  {(user?.username || user?.email || '?').charAt(0).toUpperCase()}
+                </div>
+              </Tooltip>
+              <Tooltip content="Sign out">
+                <button
+                  type="button"
+                  className={styles.logoutButton}
+                  onClick={() => setIsLogoutModalOpen(true)}
+                  aria-label="Log out"
+                  title="Sign out"
+                  data-testid="logout-button"
+                >
+                  <LogoutIcon />
+                </button>
+              </Tooltip>
             </div>
-            <div className={styles.accountText}>
-              <p className={styles.accountName} title={user?.username}>
-                {user?.username || 'Account'}
-              </p>
-              <p className={styles.accountEmail} title={user?.email}>
-                {user?.email}
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            className={styles.themeToggle}
-            onClick={toggleTheme}
-            aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-            title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
-            data-testid="theme-toggle"
-          >
-            {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
-          </button>
-          <button
-            type="button"
-            className={styles.logoutButton}
-            onClick={() => setIsLogoutModalOpen(true)}
-            aria-label="Log out"
-            title="Sign out"
-            data-testid="logout-button"
-          >
-            <LogoutIcon />
-          </button>
+          ) : (
+            <>
+              <div className={styles.accountInfo}>
+                <div className={styles.accountAvatar} aria-hidden="true">
+                  {(user?.username || user?.email || '?').charAt(0).toUpperCase()}
+                </div>
+                <div className={styles.accountText}>
+                  <p className={styles.accountName} title={user?.username}>
+                    {user?.username || 'Account'}
+                  </p>
+                  <p className={styles.accountEmail} title={user?.email}>
+                    {user?.email}
+                  </p>
+                </div>
+              </div>
+
+              <div className={styles.footerActions}>
+                <button
+                  type="button"
+                  className={styles.logoutButton}
+                  onClick={() => setIsLogoutModalOpen(true)}
+                  aria-label="Log out"
+                  title="Sign out"
+                  data-testid="logout-button"
+                >
+                  <LogoutIcon />
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </aside>
 

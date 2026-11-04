@@ -1,35 +1,36 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Film } from "lucide-react";
-import { useVideoLibrary } from "../../context/VideoLibraryContext";
-import { useConversations } from "../../context/ConversationContext";
-import { useUI } from "../../context/UIContext";
-import { VIDEO_STATUS } from "../../utils/constants";
-import Modal from "../common/Modal";
-import styles from "./Sidebar.module.css";
+import React, { useEffect, useRef, useState } from 'react';
+import { Film } from 'lucide-react';
+import { useVideoLibrary } from '../../context/VideoLibraryContext';
+import { useConversations } from '../../context/ConversationContext';
+import { useUI } from '../../context/UIContext';
+import { VIDEO_STATUS } from '../../utils/constants';
+import Modal from '../common/Modal';
+import Tooltip from '../common/Tooltip';
+import styles from './Sidebar.module.css';
 
 function StatusDot({ status }) {
   const colors = {
-    [VIDEO_STATUS.PROCESSED]: "#16a34a",
-    [VIDEO_STATUS.ALREADY_PROCESSED]: "#16a34a",
-    [VIDEO_STATUS.PROCESSING]: "#d97706",
-    [VIDEO_STATUS.FAILED]: "#dc2626",
+    [VIDEO_STATUS.PROCESSED]: 'var(--success-500, #22c55e)',
+    [VIDEO_STATUS.ALREADY_PROCESSED]: 'var(--success-500, #22c55e)',
+    [VIDEO_STATUS.PROCESSING]: 'var(--warning-500, #f59e0b)',
+    [VIDEO_STATUS.FAILED]: 'var(--danger-500, #ef4444)',
   };
   return (
     <span
       style={{
         width: 7,
         height: 7,
-        borderRadius: "50%",
-        background: colors[status] || "#94a3b8",
+        borderRadius: '50%',
+        background: colors[status] || 'var(--text-muted, #717171)',
         flexShrink: 0,
-        display: "inline-block",
+        display: 'inline-block',
       }}
       aria-hidden="true"
     />
   );
 }
 
-export default function VideoLibraryItem({ video, isSelected }) {
+export default function VideoLibraryItem({ video, isSelected, isCollapsed }) {
   const { selectVideo, removeVideo, reprocessVideo } = useVideoLibrary();
   const { clearActiveConversation } = useConversations();
   const { closeComposer } = useUI();
@@ -69,13 +70,13 @@ export default function VideoLibraryItem({ video, isSelected }) {
       }
     };
     const closeOnMove = () => setMenuOpen(false);
-    document.addEventListener("mousedown", handleClickOutside);
-    window.addEventListener("scroll", closeOnMove, true);
-    window.addEventListener("resize", closeOnMove);
+    document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('scroll', closeOnMove, true);
+    window.addEventListener('resize', closeOnMove);
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      window.removeEventListener("scroll", closeOnMove, true);
-      window.removeEventListener("resize", closeOnMove);
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', closeOnMove, true);
+      window.removeEventListener('resize', closeOnMove);
     };
   }, [menuOpen]);
 
@@ -105,7 +106,6 @@ export default function VideoLibraryItem({ video, isSelected }) {
   const handleReprocess = async (e) => {
     e.stopPropagation();
     setMenuOpen(false);
-    // Video records don't store the original URL — rebuild it from the id.
     await reprocessVideo(
       video.video_id,
       video.url || `https://www.youtube.com/watch?v=${video.video_id}`
@@ -113,24 +113,57 @@ export default function VideoLibraryItem({ video, isSelected }) {
   };
 
   const statusLabels = {
-    [VIDEO_STATUS.PROCESSED]: "Ready",
-    [VIDEO_STATUS.ALREADY_PROCESSED]: "Ready",
-    [VIDEO_STATUS.PROCESSING]: "Processing…",
-    [VIDEO_STATUS.FAILED]: "Failed",
+    [VIDEO_STATUS.PROCESSED]: 'Ready',
+    [VIDEO_STATUS.ALREADY_PROCESSED]: 'Ready',
+    [VIDEO_STATUS.PROCESSING]: 'Processing…',
+    [VIDEO_STATUS.FAILED]: 'Failed',
   };
+
+  if (isCollapsed) {
+    const tooltipText = `${video.title || 'Video'} (● ${statusLabels[video.status] || video.status})`;
+    return (
+      <li
+        className={`${styles.itemCollapsed} ${isSelected ? styles.itemSelected : ''}`}
+        onClick={handleSelect}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => e.key === 'Enter' && handleSelect()}
+        aria-pressed={isSelected}
+        aria-label={`Video: ${video.title || 'Untitled'} (${statusLabels[video.status] || video.status})`}
+      >
+        <Tooltip content={tooltipText}>
+          <div className={styles.itemThumbCollapsed}>
+            {video.thumbnail_url ? (
+              <img src={video.thumbnail_url} alt="" className={styles.itemThumbImg} />
+            ) : (
+              <Film size={14} />
+            )}
+            <span className={styles.collapsedStatusDot}>
+              <StatusDot status={video.status} />
+            </span>
+          </div>
+        </Tooltip>
+      </li>
+    );
+  }
 
   return (
     <>
       <li
-        className={`${styles.item} ${isSelected ? styles.itemSelected : ""} ${isDeleting ? styles.itemDeleting : ""}`}
+        className={`${styles.item} ${isSelected ? styles.itemSelected : ''} ${isDeleting ? styles.itemDeleting : ''}`}
         onClick={handleSelect}
         role="button"
         tabIndex={0}
-        onKeyDown={(e) => e.key === "Enter" && handleSelect()}
+        onKeyDown={(e) => e.key === 'Enter' && handleSelect()}
         aria-pressed={isSelected}
       >
         {video.thumbnail_url ? (
-          <img src={video.thumbnail_url} alt="" className={styles.itemThumb} data-testid="sidebar-video-thumbnail" />
+          <img
+            src={video.thumbnail_url}
+            alt=""
+            className={styles.itemThumb}
+            data-testid="sidebar-video-thumbnail"
+          />
         ) : (
           <div className={styles.itemThumbFallback} aria-hidden="true">
             <Film size={14} />
@@ -138,7 +171,7 @@ export default function VideoLibraryItem({ video, isSelected }) {
         )}
         <div className={styles.itemBody}>
           <p className={styles.itemTitle} title={video.title}>
-            {video.title || "Untitled"}
+            {video.title || 'Untitled'}
           </p>
           <div className={styles.itemMeta}>
             <StatusDot status={video.status} />
@@ -148,10 +181,7 @@ export default function VideoLibraryItem({ video, isSelected }) {
           </div>
         </div>
 
-        <div
-          className={styles.itemActions}
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div className={styles.itemActions} onClick={(e) => e.stopPropagation()}>
           <button
             ref={toggleRef}
             type="button"
@@ -194,13 +224,13 @@ export default function VideoLibraryItem({ video, isSelected }) {
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         title="Delete video?"
-        confirmLabel={isDeleting ? "Deleting…" : "Delete"}
+        confirmLabel={isDeleting ? 'Deleting…' : 'Delete'}
         cancelLabel="Cancel"
         isDestructive
         onConfirm={handleConfirmDelete}
       >
         <p>
-          Are you sure you want to delete &ldquo;{video.title || "this video"}&rdquo;?
+          Are you sure you want to delete &ldquo;{video.title || 'this video'}&rdquo;?
           This will remove it and its associated question history from your library.
         </p>
       </Modal>
