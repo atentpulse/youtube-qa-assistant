@@ -24,6 +24,11 @@ class AskQuestionRequest(BaseModel):
         ),
     )
 
+    answer_length: str | None = "balanced"
+    response_style: str | None = "explanatory"
+    prefer_structured: bool | None = True
+    include_examples: bool | None = False
+
 
 class SourceResponse(BaseModel):
 

@@ -1,7 +1,10 @@
 import React from 'react';
+import { usePreferences } from '../../context/PreferencesContext';
 import styles from './MainPanel.module.css';
 
 export default function SourceChip({ source, onSeek }) {
+  const { formatSeconds } = usePreferences();
+
   const handleClick = (e) => {
     if (onSeek && typeof source.start_time === 'number') {
       e.preventDefault();
@@ -9,8 +12,15 @@ export default function SourceChip({ source, onSeek }) {
     }
   };
 
-  const timeLabel = source.start_time_formatted
-    ? `${source.start_time_formatted}${source.end_time_formatted ? ' - ' + source.end_time_formatted : ''}`
+  const startFormatted = typeof source.start_time === 'number'
+    ? formatSeconds(source.start_time)
+    : source.start_time_formatted;
+  const endFormatted = typeof source.end_time === 'number' && source.end_time > 0
+    ? formatSeconds(source.end_time)
+    : source.end_time_formatted;
+
+  const timeLabel = startFormatted
+    ? `${startFormatted}${endFormatted ? ' - ' + endFormatted : ''}`
     : `${Math.floor(source.start_time || 0)}s`;
 
   const tooltipText = source.text

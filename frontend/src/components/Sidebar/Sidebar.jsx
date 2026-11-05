@@ -5,6 +5,7 @@ import ConversationItem from './ConversationItem';
 import Modal from '../common/Modal';
 import Tooltip from '../common/Tooltip';
 import Skeleton from '../common/Skeleton';
+import UserProfileDropdown from './UserProfileDropdown';
 import { MessageSquare, Film } from 'lucide-react';
 import { useVideoLibrary } from '../../context/VideoLibraryContext';
 import { useConversations } from '../../context/ConversationContext';
@@ -29,19 +30,6 @@ function PlusIcon() {
   );
 }
 
-function LogoutIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="15" height="15" fill="none">
-      <path
-        d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
 
 export default function Sidebar() {
   const navigate = useNavigate();
@@ -64,7 +52,7 @@ export default function Sidebar() {
     isSidebarCollapsed,
     toggleSidebarCollapse,
   } = useUI();
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
@@ -402,58 +390,12 @@ export default function Sidebar() {
           </div>
         </div>
 
-        {/* ---- Pinned Bottom Footer: User & Controls ---- */}
+        {/* ---- Pinned Bottom Footer: User Profile Menu ---- */}
         <div className={styles.accountFooter}>
-          {isSidebarCollapsed ? (
-            <div className={styles.collapsedFooter}>
-              <Tooltip content={user?.email || user?.username || 'Account'}>
-                <div className={styles.accountAvatar} aria-hidden="true">
-                  {(user?.username || user?.email || '?').charAt(0).toUpperCase()}
-                </div>
-              </Tooltip>
-              <Tooltip content="Sign out">
-                <button
-                  type="button"
-                  className={styles.logoutButton}
-                  onClick={() => setIsLogoutModalOpen(true)}
-                  aria-label="Log out"
-                  title="Sign out"
-                  data-testid="logout-button"
-                >
-                  <LogoutIcon />
-                </button>
-              </Tooltip>
-            </div>
-          ) : (
-            <>
-              <div className={styles.accountInfo}>
-                <div className={styles.accountAvatar} aria-hidden="true">
-                  {(user?.username || user?.email || '?').charAt(0).toUpperCase()}
-                </div>
-                <div className={styles.accountText}>
-                  <p className={styles.accountName} title={user?.username}>
-                    {user?.username || 'Account'}
-                  </p>
-                  <p className={styles.accountEmail} title={user?.email}>
-                    {user?.email}
-                  </p>
-                </div>
-              </div>
-
-              <div className={styles.footerActions}>
-                <button
-                  type="button"
-                  className={styles.logoutButton}
-                  onClick={() => setIsLogoutModalOpen(true)}
-                  aria-label="Log out"
-                  title="Sign out"
-                  data-testid="logout-button"
-                >
-                  <LogoutIcon />
-                </button>
-              </div>
-            </>
-          )}
+          <UserProfileDropdown
+            isCollapsed={isSidebarCollapsed}
+            onTriggerLogout={() => setIsLogoutModalOpen(true)}
+          />
         </div>
       </aside>
 

@@ -36,7 +36,17 @@ class UserResponse(BaseModel):
 
     email_verified: bool = False
 
+    auth_provider: str = "local"
+
     created_at: datetime | None = None
+
+
+class UpdateProfileRequest(BaseModel):
+
+    username: str = Field(
+        min_length=2,
+        max_length=100,
+    )
 
 
 class TokenResponse(BaseModel):

@@ -36,3 +36,19 @@ export function refreshToken(opts) {
   return apiClient.post('/auth/refresh', {}, opts);
 }
 
+/**
+ * Update authenticated user's profile display name.
+ * Backend contract: PATCH /auth/me
+ */
+export function updateProfile({ username }, opts) {
+  return apiClient.patch('/auth/me', { username }, opts);
+}
+
+/**
+ * Delete authenticated user's account and data.
+ * Backend contract: DELETE /auth/me
+ */
+export function deleteAccount(opts) {
+  return apiClient.delete('/auth/me', opts);
+}
+

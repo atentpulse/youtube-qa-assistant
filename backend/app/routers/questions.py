@@ -49,8 +49,8 @@ def ask_question(
     request: AskQuestionRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(
-    get_current_user
-),
+        get_current_user
+    ),
     rag_service: RAGService = Depends(
         get_rag_service
     ),
@@ -190,14 +190,31 @@ def ask_question(
         # Generate RAG answer
         # ----------------------------
 
-        result = rag_service.ask_question(
-    db=db,
-    user_id=current_user.id,
-    video_id=request.video_id.strip(),
-    question=request.question.strip(),
-    conversation_context=conversation_context,
-    rewrite_context=rewrite_context,
-)
+        try:
+            result = rag_service.ask_question(
+                db=db,
+                user_id=current_user.id,
+                video_id=request.video_id.strip(),
+                question=request.question.strip(),
+                conversation_context=conversation_context,
+                rewrite_context=rewrite_context,
+                answer_length=request.answer_length or "balanced",
+                response_style=request.response_style or "explanatory",
+                prefer_structured=request.prefer_structured if request.prefer_structured is not None else True,
+                include_examples=bool(request.include_examples),
+            )
+        except TypeError as type_err:
+            if "unexpected keyword argument" in str(type_err):
+                result = rag_service.ask_question(
+                    db=db,
+                    user_id=current_user.id,
+                    video_id=request.video_id.strip(),
+                    question=request.question.strip(),
+                    conversation_context=conversation_context,
+                    rewrite_context=rewrite_context,
+                )
+            else:
+                raise
 
 
         # ----------------------------

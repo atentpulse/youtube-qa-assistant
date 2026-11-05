@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import SourceChip from './SourceChip';
 import Skeleton from '../common/Skeleton';
 import Spinner from '../common/Spinner';
+import { usePreferences } from '../../context/PreferencesContext';
 import styles from './MainPanel.module.css';
 
 function CopyIcon() {
@@ -36,12 +37,14 @@ function ThumbsDownIcon() {
  * ChatGPT-style clean flowing conversation layout.
  */
 export default function MessageBubble({ message, onSeek }) {
+  const { preferences } = usePreferences();
   const [copied, setCopied] = useState(false);
   const [feedback, setFeedback] = useState(null); // 'like' | 'dislike' | null
 
   const isLoading = message.status === 'loading';
   const isError = message.status === 'error';
   const showNotFound = !isLoading && !isError && message.notFound && !message.answer;
+  const showCitations = preferences?.showCitations !== false;
 
   const handleCopy = () => {
     if (message.answer) {
@@ -140,6 +143,7 @@ export default function MessageBubble({ message, onSeek }) {
 
             {!isLoading &&
               !isError &&
+              showCitations &&
               Array.isArray(message.sources) &&
               message.sources.length > 0 && (
                 <div className={styles.sourcesBlock}>

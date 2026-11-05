@@ -14,6 +14,7 @@ from app.auth.dependencies import (
 )
 
 from app.models.user import User
+from app.models.conversation import Conversation
 from app.models.message import Message
 
 from app.schemas.conversation import (
@@ -98,6 +99,83 @@ def get_conversations(
             video_id=video_id,
         )
     )
+
+
+# --------------------------------
+# Export conversation history
+# --------------------------------
+
+@router.get(
+    "/export",
+)
+def export_conversations(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    user_conversations = conversation_service.get_user_conversations(
+        db=db,
+        user_id=current_user.id,
+    )
+
+    export_data = {
+        "user": {
+            "id": current_user.id,
+            "username": current_user.username,
+            "email": current_user.email,
+        },
+        "total_conversations": len(user_conversations),
+        "conversations": [],
+    }
+
+    for conv in user_conversations:
+        messages = conversation_service.get_messages(
+            db=db,
+            conversation_id=conv.id,
+            user_id=current_user.id,
+            limit=1000,
+        )
+        export_data["conversations"].append({
+            "id": conv.id,
+            "title": conv.title,
+            "video_id": conv.video_id,
+            "created_at": conv.created_at.isoformat() if conv.created_at else None,
+            "updated_at": conv.updated_at.isoformat() if conv.updated_at else None,
+            "messages": [
+                {
+                    "id": m.id,
+                    "role": m.role,
+                    "content": m.content,
+                    "created_at": m.created_at.isoformat() if m.created_at else None,
+                }
+                for m in (messages or [])
+            ],
+        })
+
+    return export_data
+
+
+# --------------------------------
+# Clear all conversations
+# --------------------------------
+
+@router.delete(
+    "",
+)
+def clear_all_conversations(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    count = (
+        db.query(Conversation)
+        .filter(Conversation.user_id == current_user.id)
+        .delete(synchronize_session="fetch")
+    )
+    db.commit()
+
+    return {
+        "message": f"Successfully cleared {count} conversations.",
+        "cleared_count": count,
+    }
 
 
 # --------------------------------
@@ -271,15 +349,31 @@ def send_conversation_message(
 
     # 6. Execute RAG
     try:
-
-        rag_result = rag_service.ask_question(
-            db=db,
-            user_id=current_user.id,
-            video_id=target_video_id,
-            question=question_text,
-            conversation_context=conversation_context,
-            rewrite_context=rewrite_context,
-        )
+        try:
+            rag_result = rag_service.ask_question(
+                db=db,
+                user_id=current_user.id,
+                video_id=target_video_id,
+                question=question_text,
+                conversation_context=conversation_context,
+                rewrite_context=rewrite_context,
+                answer_length=request.answer_length or "balanced",
+                response_style=request.response_style or "explanatory",
+                prefer_structured=request.prefer_structured if request.prefer_structured is not None else True,
+                include_examples=bool(request.include_examples),
+            )
+        except TypeError as type_err:
+            if "unexpected keyword argument" in str(type_err):
+                rag_result = rag_service.ask_question(
+                    db=db,
+                    user_id=current_user.id,
+                    video_id=target_video_id,
+                    question=question_text,
+                    conversation_context=conversation_context,
+                    rewrite_context=rewrite_context,
+                )
+            else:
+                raise
 
     except ValueError as error:
 

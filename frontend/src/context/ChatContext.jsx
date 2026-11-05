@@ -1,7 +1,8 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { askQuestion } from '../api/questions';
 import { ApiError } from '../api/client';
 import { useConversations } from './ConversationContext';
+import { usePreferences } from './PreferencesContext';
 
 const ChatContext = createContext(null);
 
@@ -76,6 +77,11 @@ export function ChatProvider({ children }) {
     messagesStatus,
     registerConversation,
   } = useConversations();
+  const { preferences } = usePreferences();
+  const preferencesRef = useRef(preferences);
+  useEffect(() => {
+    preferencesRef.current = preferences;
+  }, [preferences]);
 
   // { [key]: Array<Message> }
   // Keys:
@@ -118,6 +124,10 @@ export function ChatProvider({ children }) {
           video_id: videoId,
           question,
           conversation_id: currentConvId,
+          answer_length: preferencesRef.current?.answerLength,
+          response_style: preferencesRef.current?.responseStyle,
+          prefer_structured: preferencesRef.current?.preferStructured,
+          include_examples: preferencesRef.current?.includeExamples,
         });
 
         const notFound = isNoInformationFound(response);
@@ -182,6 +192,10 @@ export function ChatProvider({ children }) {
           video_id: videoId,
           question,
           conversation_id: currentConvId,
+          answer_length: preferencesRef.current?.answerLength,
+          response_style: preferencesRef.current?.responseStyle,
+          prefer_structured: preferencesRef.current?.preferStructured,
+          include_examples: preferencesRef.current?.includeExamples,
         });
 
         const notFound = isNoInformationFound(response);

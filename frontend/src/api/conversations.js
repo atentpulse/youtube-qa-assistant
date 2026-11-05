@@ -33,3 +33,19 @@ export function renameConversation(id, title, opts) {
 export function deleteConversation(id, opts) {
   return apiClient.delete(`/conversations/${id}`, opts);
 }
+
+/**
+ * Clear all conversations for the authenticated user.
+ * Backend contract: DELETE /conversations
+ */
+export function clearAllConversations(opts) {
+  return apiClient.delete('/conversations', opts);
+}
+
+/**
+ * Export full conversation history with messages.
+ * Backend contract: GET /conversations/export
+ */
+export function exportConversations(opts) {
+  return apiClient.get('/conversations/export', opts);
+}

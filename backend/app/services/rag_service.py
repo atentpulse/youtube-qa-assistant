@@ -323,15 +323,19 @@ class RAGService:
             db.close()
 
     def ask_question(
-    self,
-    db,
-    user_id: int,
-    video_id: str,
-    question: str,
-    conversation_context: str = "",
-    rewrite_context: str = "",
-    top_k: int = 15,
-):
+        self,
+        db,
+        user_id: int,
+        video_id: str,
+        question: str,
+        conversation_context: str = "",
+        rewrite_context: str = "",
+        top_k: int = 15,
+        answer_length: str = "balanced",
+        response_style: str = "explanatory",
+        prefer_structured: bool = True,
+        include_examples: bool = False,
+    ):
 
         # --------------------------------
         # 1. Check video metadata
@@ -555,6 +559,10 @@ class RAGService:
             question=question,
             context=context,
             conversation_context=conversation_context,
+            answer_length=answer_length,
+            response_style=response_style,
+            prefer_structured=prefer_structured,
+            include_examples=include_examples,
         )
 
         answer = llm_result["answer"]

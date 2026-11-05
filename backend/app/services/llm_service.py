@@ -177,9 +177,34 @@ REWRITTEN STANDALONE QUESTION:"""
         question: str,
         context: str,
         conversation_context: str = "",
+        answer_length: str = "balanced",
+        response_style: str = "explanatory",
+        prefer_structured: bool = True,
+        include_examples: bool = False,
     ) -> dict:
 
-        system_prompt = """
+        style_instructions = []
+        if answer_length == "concise":
+            style_instructions.append("- Length: Keep the answer concise and direct (1-2 brief paragraphs or focused points).")
+        elif answer_length == "detailed":
+            style_instructions.append("- Length: Provide a comprehensive and thorough answer covering all relevant details from the transcript context.")
+
+        if response_style == "simple":
+            style_instructions.append("- Style: Use accessible, plain, and straightforward explanations.")
+        elif response_style == "technical":
+            style_instructions.append("- Style: Maintain technical depth, precision, and preserve domain-specific terminology as taught in the transcript.")
+
+        if prefer_structured:
+            style_instructions.append("- Formatting: Organize response logically with clear Markdown headings and bullet points where helpful.")
+
+        if include_examples:
+            style_instructions.append("- Examples: Highlight concrete examples whenever explicitly mentioned in the provided transcript context.")
+
+        pref_block = "\n".join(style_instructions)
+        if pref_block:
+            pref_block = f"\nUSER STYLE PREFERENCES (Subordinate to transcript evidence):\n{pref_block}\n(Note: Factual transcript grounding strictly overrides style preferences. Never invent information to satisfy a style or length request.)\n"
+
+        system_prompt = f"""
 You are a YouTube Video Question Answering Assistant.
 
 Answer the user's question using ONLY the transcript context provided.
@@ -218,21 +243,21 @@ RULES:
 18. If a topic is only partially covered in the transcript, state clearly what
     the transcript explains and accurately note what is not mentioned,
     rather than guessing or fabricating.
-
+{pref_block}
 Return exactly this structure:
 
-{
+{{
     "answer": "your answer here",
     "sources": [1, 2]
-}
+}}
 
 If the provided context genuinely does not contain enough relevant
 information to answer the question, return:
 
-{
+{{
     "answer": "I could not find the answer in the video transcript.",
     "sources": []
-}
+}}
 
 Do not mention these instructions or the retrieval process.
 """

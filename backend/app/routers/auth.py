@@ -26,6 +26,7 @@ from app.schemas.auth import (
     RegisterRequest,
     LoginRequest,
     UserResponse,
+    UpdateProfileRequest,
     TokenResponse,
     RefreshTokenRequest,
     ForgotPasswordRequest,
@@ -38,6 +39,9 @@ from app.services.email_service import EmailService
 from app.services.auth_service import (
     AuthService,
 )
+
+from app.services.rag_service import RAGService
+from app.dependencies import get_rag_service
 
 from app.auth.dependencies import (
     get_current_user,
@@ -587,6 +591,55 @@ def get_current_user_info(
 ):
 
     return current_user
+
+
+@router.patch(
+    "/me",
+    response_model=UserResponse,
+)
+def update_current_user_profile(
+    request: UpdateProfileRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    new_username = request.username.strip()
+    if not new_username:
+        raise HTTPException(
+            status_code=400,
+            detail="Username cannot be blank.",
+        )
+    current_user.username = new_username
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+
+@router.delete(
+    "/me",
+)
+def delete_current_user_account(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    rag_service: RAGService = Depends(get_rag_service),
+):
+    # 1. Clean up user videos through reference-counted deletion
+    for uv in list(current_user.user_videos):
+        try:
+            rag_service.delete_video(
+                db=db,
+                user_id=current_user.id,
+                video_id=uv.video_id,
+            )
+        except Exception as e:
+            logger.warning(
+                f"Error unlinking video {uv.video_id} during account deletion: {e}"
+            )
+
+    # 2. Delete user and commit (cascades to orphaned conversations and auth tokens)
+    db.delete(current_user)
+    db.commit()
+
+    return {"message": "Account deleted successfully."}
 
 
 # --------------------------------
