@@ -397,3 +397,153 @@ async def test_real_registration_to_verification_flow(async_client, db, monkeypa
     assert "access_token" in login_data
     assert "refresh_token" in login_data
 
+
+# ---------------------------------------------------------------------------
+# Google OAuth 2.0 Regression & Returning-User Tests (Bug Fix Cycle 2)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_google_oauth_new_user_success(db):
+    """Verify first-time Google user creation and JWT issuance."""
+    from app.services.auth_service import AuthService
+    from app.auth.jwt import decode_token
+    from app.models.user import User
+
+    auth_svc = AuthService()
+    google_id = "google_sub_10001"
+    email = "new.google.user@example.com"
+    username = "GoogleUser"
+
+    token = auth_svc.login_or_create_google_user(
+        db=db,
+        google_id=google_id,
+        email=email,
+        username=username,
+    )
+    assert token is not None
+
+    payload = decode_token(token)
+    assert payload is not None
+    user = db.query(User).filter(User.google_id == google_id).first()
+    assert user is not None
+    assert user.email == email
+    assert user.email_verified is True
+    assert user.auth_provider == "google"
+    assert payload.get("sub") == str(user.id)
+
+
+@pytest.mark.asyncio
+async def test_google_oauth_returning_user_repeated_login(db):
+    """Verify that a returning Google user can log in repeatedly without duplicate user errors."""
+    from app.services.auth_service import AuthService
+    from app.models.user import User
+
+    auth_svc = AuthService()
+    google_id = "google_sub_20002"
+    email = "returning.user@example.com"
+    username = "ReturningUser"
+
+    # First login (creates user)
+    token_1 = auth_svc.login_or_create_google_user(
+        db=db,
+        google_id=google_id,
+        email=email,
+        username=username,
+    )
+    user_count_initial = db.query(User).filter(User.google_id == google_id).count()
+    assert user_count_initial == 1
+
+    # Second login (returning user)
+    token_2 = auth_svc.login_or_create_google_user(
+        db=db,
+        google_id=google_id,
+        email=email,
+        username=username,
+    )
+    assert token_2 is not None
+
+    # Third login (repeated login)
+    token_3 = auth_svc.login_or_create_google_user(
+        db=db,
+        google_id=google_id,
+        email=email,
+        username=username,
+    )
+    assert token_3 is not None
+
+    # Verify no duplicate user was created
+    user_count_final = db.query(User).filter(User.google_id == google_id).count()
+    assert user_count_final == 1
+
+
+@pytest.mark.asyncio
+async def test_google_oauth_existing_user_email_linking(db):
+    """Verify that an existing user without google_id is linked upon Google sign-in with verified email."""
+    from app.services.auth_service import AuthService
+    from app.models.user import User
+
+    auth_svc = AuthService()
+    email = "preexisting.account@example.com"
+    google_id = "google_sub_30003"
+
+    # Pre-create a local user with email
+    pre_user = User(
+        username="PreExisting",
+        email=email,
+        password_hash="some_hash",
+        auth_provider="local",
+        google_id=None,
+        email_verified=False,
+    )
+    db.add(pre_user)
+    db.commit()
+    db.refresh(pre_user)
+    orig_id = pre_user.id
+
+    # User now logs in using Google with that same email
+    token = auth_svc.login_or_create_google_user(
+        db=db,
+        google_id=google_id,
+        email=email,
+        username="PreExistingGoogle",
+    )
+    assert token is not None
+
+    # Verify existing account was linked, not duplicated
+    users_with_email = db.query(User).filter(User.email == email).all()
+    assert len(users_with_email) == 1
+    linked_user = users_with_email[0]
+    assert linked_user.id == orig_id
+    assert linked_user.google_id == google_id
+    assert linked_user.email_verified is True
+
+
+@pytest.mark.asyncio
+async def test_google_oauth_conflicting_google_id_rejected(db):
+    """Verify that an email already linked to another google_id cannot be hijacked by a different google_id."""
+    from app.services.auth_service import AuthService
+    from app.models.user import User
+
+    auth_svc = AuthService()
+    email = "conflict.test@example.com"
+
+    # Pre-create user linked to google_sub_AAA
+    user_a = User(
+        username="UserA",
+        email=email,
+        password_hash=None,
+        auth_provider="google",
+        google_id="google_sub_AAA",
+        email_verified=True,
+    )
+    db.add(user_a)
+    db.commit()
+
+    # Attempt to log in with a different google_sub_BBB claiming the same email
+    with pytest.raises(ValueError, match="already associated with another Google account"):
+        auth_svc.login_or_create_google_user(
+            db=db,
+            google_id="google_sub_BBB",
+            email=email,
+            username="UserB",
+        )

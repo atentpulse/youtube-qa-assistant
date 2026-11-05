@@ -538,6 +538,7 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: 96px 24px 80px;
+  scroll-margin-top: 80px;
 }
 
 .sectionHeader {
@@ -624,6 +625,7 @@
   border-bottom: 1px solid var(--border-default, #303030);
   padding: 96px 24px;
   width: 100%;
+  scroll-margin-top: 80px;
 }
 
 .howContainer {

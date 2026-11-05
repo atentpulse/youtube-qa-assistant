@@ -446,6 +446,11 @@ async def google_login(
             ),
         )
 
+    # Clear any stale OAuth session state to avoid mismatching state errors
+    for key in list(request.session.keys()):
+        if key.startswith("_state_google_") or key.startswith("_google_"):
+            request.session.pop(key, None)
+
     return await oauth.google.authorize_redirect(
         request,
         redirect_uri,
@@ -477,37 +482,38 @@ async def google_callback(
         user_info = token.get("userinfo")
 
         if not user_info:
+            try:
+                user_info = await oauth.google.userinfo(token=token)
+            except Exception as e:
+                print(f"Fallback userinfo fetch failed: {e}")
 
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "Unable to retrieve Google "
-                    "user information."
-                ),
+        if not user_info:
+            error_message = urllib.parse.quote(
+                "Unable to retrieve Google user information."
+            )
+            return RedirectResponse(
+                url=f"{FRONTEND_URL}/login?error={error_message}"
             )
 
         # Google must confirm that
         # the email is verified
         if not user_info.get("email_verified"):
-
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "Google email is not verified."
-                ),
+            error_message = urllib.parse.quote(
+                "Google email is not verified."
+            )
+            return RedirectResponse(
+                url=f"{FRONTEND_URL}/login?error={error_message}"
             )
 
-        google_id = user_info.get("sub")
+        google_id = user_info.get("sub") or user_info.get("id")
         email = user_info.get("email")
 
         if not google_id or not email:
-
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "Google account information "
-                    "is incomplete."
-                ),
+            error_message = urllib.parse.quote(
+                "Google account information is incomplete."
+            )
+            return RedirectResponse(
+                url=f"{FRONTEND_URL}/login?error={error_message}"
             )
 
         username = (
@@ -527,11 +533,11 @@ async def google_callback(
         )
 
         return RedirectResponse(
-    url=(
-        f"{FRONTEND_URL}/oauth/callback"
-        f"?token={urllib.parse.quote(access_token)}"
-    )
-)
+            url=(
+                f"{FRONTEND_URL}/oauth/callback"
+                f"?token={urllib.parse.quote(access_token)}"
+            )
+        )
 
     except ValueError as error:
 
@@ -545,10 +551,6 @@ async def google_callback(
                 f"?error={error_message}"
             )
         )
-
-    except HTTPException:
-
-        raise
 
     except Exception as error:
 

@@ -1,3 +1,4 @@
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.user import User
@@ -105,46 +106,58 @@ class AuthService:
         email: str,
         username: str,
     ) -> str:
+        clean_email = email.strip().lower()
+        gid = str(google_id).strip()
 
-        # 1. Find existing Google user by Google ID
-        user = db.query(User).filter(User.google_id == google_id).first()
+        # 1. Stable primary identity: Match by Google ID
+        user = db.query(User).filter(User.google_id == gid).first()
 
-        # Existing Google user → login
         if user:
-            return create_access_token(
-                user_id=user.id,
-            )
+            # Sync email if changed on Google and guarantee verified status
+            if user.email.lower() != clean_email:
+                user.email = clean_email
+            user.email_verified = True
+            db.commit()
+            return create_access_token(user_id=user.id)
 
-        # 2. Check whether this email already belongs to a user
-        existing_user = db.query(User).filter(User.email == email).first()
+        # 2. Match by verified email (case-insensitive)
+        existing_user = (
+            db.query(User)
+            .filter(func.lower(User.email) == clean_email)
+            .first()
+        )
 
-        # Existing local account → do NOT silently link
         if existing_user:
-            raise ValueError(
-                "An account with this email already exists. "
-                "Please log in using your existing account."
-            )
+            # Link Google account if not yet linked to a different google_id
+            if not existing_user.google_id:
+                existing_user.google_id = gid
+                existing_user.email_verified = True
+                db.commit()
+                return create_access_token(user_id=existing_user.id)
+            elif existing_user.google_id == gid:
+                existing_user.email_verified = True
+                db.commit()
+                return create_access_token(user_id=existing_user.id)
+            else:
+                raise ValueError(
+                    "This email is already associated with another Google account."
+                )
 
         # 3. Create a new Google user
-        user = User(
-            username=username[:100],
-            email=email,
+        new_user = User(
+            username=(username or clean_email.split("@")[0])[:100],
+            email=clean_email,
             password_hash=None,
             auth_provider="google",
-            google_id=google_id,
+            google_id=gid,
             email_verified=True,
         )
 
-        db.add(user)
+        db.add(new_user)
         db.commit()
-        db.refresh(user)
+        db.refresh(new_user)
 
-        # 4. Issue your normal application JWT
-        access_token = create_access_token(
-            user_id=user.id,
-        )
-
-        return access_token
+        return create_access_token(user_id=new_user.id)
 
     def create_password_reset_token(
         self,

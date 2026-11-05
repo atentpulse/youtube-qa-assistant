@@ -95,14 +95,9 @@ export default function LandingPage() {
                 Open Workspace <ArrowRight size={14} />
               </Link>
             ) : (
-              <>
-                <Link to="/login" className={styles.navLink} data-testid="nav-sign-in-link">
-                  Sign in
-                </Link>
-                <Link to="/register" className={styles.navCta} data-testid="nav-get-started-link">
-                  Get Started
-                </Link>
-              </>
+              <Link to="/register" className={styles.navCta} data-testid="nav-get-started-link">
+                Get Started
+              </Link>
             )}
           </nav>
         </div>
