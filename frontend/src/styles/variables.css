@@ -64,6 +64,13 @@
   --text-inverse-muted: #aaaaaa;
   --text-inverse-faint: #717171;
 
+  /* Sidebar Typography Contrast Tokens */
+  --sidebar-text-title: #ececec;
+  --sidebar-text-sub: #bebebe;
+  --sidebar-text-header: #b0b0b0;
+  --sidebar-text-meta: #9e9e9e;
+  --sidebar-text-icon: #9e9e9e;
+
   /* Legacy numbered text tokens remapped */
   --text-900: #f1f1f1;
   --text-800: #e0e0e0;

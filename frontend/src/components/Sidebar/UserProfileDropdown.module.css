@@ -85,14 +85,14 @@
 
 .userEmail {
   font-size: 11px;
-  color: var(--text-secondary, #aaaaaa);
+  color: var(--sidebar-text-meta, #9e9e9e);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .chevronIcon {
-  color: var(--text-secondary, #aaaaaa);
+  color: var(--sidebar-text-icon, #9e9e9e);
   flex-shrink: 0;
   transition: transform 0.18s ease;
 }
