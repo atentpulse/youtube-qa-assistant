@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, useMemo } from "react";
 import { useVideoLibrary } from "../../context/VideoLibraryContext";
 import { useConversations } from "../../context/ConversationContext";
 import { useUI } from "../../context/UIContext";
@@ -7,8 +7,10 @@ import { VIDEO_STATUS } from "../../utils/constants";
 import MessageBubble from "./MessageBubble";
 import UrlComposer from "./UrlComposer";
 import VideoPlayer from "../VideoPlayer/VideoPlayer";
+import ConversationSelectionView from "./ConversationSelectionView";
 import Spinner from "../common/Spinner";
 import Skeleton from "../common/Skeleton";
+import { MessageSquare } from "lucide-react";
 import styles from "./MainPanel.module.css";
 
 const STARTER_PROMPTS = [
@@ -76,20 +78,22 @@ function QAComposer({ videoId, hasMessages }) {
 
   return (
     <div className={styles.composerWrap}>
-      {/* Starter Prompts (shown when thread is empty) */}
+      {/* Starter Prompts with static pinned label and hidden scrollbar */}
       {!hasMessages && (
-        <div className={styles.startersRow}>
+        <div className={styles.startersWrap}>
           <span className={styles.startersLabel}>Suggested:</span>
-          {STARTER_PROMPTS.map((prompt, idx) => (
-            <button
-              key={idx}
-              type="button"
-              className={styles.starterChip}
-              onClick={() => handleSelectStarter(prompt)}
-            >
-              💡 {prompt}
-            </button>
-          ))}
+          <div className={styles.startersScroll}>
+            {STARTER_PROMPTS.map((prompt, idx) => (
+              <button
+                key={idx}
+                type="button"
+                className={styles.starterChip}
+                onClick={() => handleSelectStarter(prompt)}
+              >
+                💡 {prompt}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
@@ -141,9 +145,21 @@ function QAComposer({ videoId, hasMessages }) {
 
 export default function MainPanel() {
   const { selectedVideo, libraryStatus, reprocessVideo } = useVideoLibrary();
-  const { activeConversationId } = useConversations();
-  const { isComposerOpen, closeComposer, openMobileSidebar } = useUI();
-  const { getThread } = useChat();
+  const {
+    conversations,
+    activeConversationId,
+    selectConversation,
+    clearActiveConversation,
+  } = useConversations();
+  const {
+    isComposerOpen,
+    closeComposer,
+    openMobileSidebar,
+    selectionVideoId,
+    openConversationSelection,
+    closeConversationSelection,
+  } = useUI();
+  const { getThread, clearThread } = useChat();
   const threadEndRef = useRef(null);
   const playerRef = useRef(null);
   const [mobileTab, setMobileTab] = useState("video"); // 'video' | 'research'
@@ -154,6 +170,12 @@ export default function MainPanel() {
     : `draft_${selectedVideo?.video_id || "default"}`;
 
   const thread = activeConvKey ? getThread(activeConvKey) : [];
+
+  // Filter conversations belonging to the currently selected video
+  const videoConversations = useMemo(() => {
+    if (!selectedVideo?.video_id) return [];
+    return conversations.filter((c) => c.video_id === selectedVideo.video_id);
+  }, [conversations, selectedVideo?.video_id]);
 
   // Auto-scroll to bottom when new messages arrive.
   useEffect(() => {
@@ -173,6 +195,21 @@ export default function MainPanel() {
     if (typeof window !== "undefined" && window.innerWidth <= 768) {
       setMobileTab("video");
     }
+  };
+
+  // Section 4: Start a new conversation within the same video
+  const handleNewConversationForVideo = () => {
+    clearActiveConversation();
+    closeConversationSelection();
+    if (selectedVideo?.video_id) {
+      clearThread(`draft_${selectedVideo.video_id}`);
+    }
+  };
+
+  // Selecting a conversation from Case 3 selection view
+  const handleSelectFromPicker = (convId) => {
+    selectConversation(convId);
+    closeConversationSelection();
   };
 
   return (
@@ -239,7 +276,7 @@ export default function MainPanel() {
         </div>
       )}
 
-      {/* Composer panel (Add video) */}
+      {/* Composer panel (Add video / New chat) */}
       {isComposerOpen && (
         <UrlComposer variant="panel" onClose={closeComposer} />
       )}
@@ -291,92 +328,114 @@ export default function MainPanel() {
                 mobileTab === "research" ? styles.mobilePanelActive : styles.mobilePanelHidden
               }`}
             >
-              {/* Studio Header Bar */}
-              <div className={styles.studioHeader}>
-                <div className={styles.studioHeaderTitle}>
-                  <span>AI Research Studio</span>
-                  <span className={styles.groundingTag}>
-                    <svg
-                      viewBox="0 0 24 24"
-                      width="12"
-                      height="12"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                    >
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                    Grounded in Transcript
-                  </span>
-                </div>
-                {thread.length > 0 && (
-                  <span className={styles.threadCount}>
-                    {thread.length} {thread.length === 1 ? "question" : "questions"}
-                  </span>
-                )}
-              </div>
-
-              {/* Message Thread */}
-              <div className={styles.threadWrap}>
-                {isProcessing && (
-                  <div className={styles.centerState}>
-                    <Spinner size={24} />
-                    <p>
-                      Processing this video… it&apos;ll be ready to chat with shortly.
-                    </p>
-                  </div>
-                )}
-
-                {isFailed && (
-                  <div className={styles.centerState}>
-                    <p className={styles.errorText}>
-                      This video failed to process.
-                    </p>
-                    <button
-                      type="button"
-                      className={styles.retryLink}
-                      style={{ marginTop: "8px", cursor: "pointer" }}
-                      data-testid="retry-processing-button"
-                      onClick={() =>
-                        reprocessVideo(
-                          selectedVideo.video_id,
-                          selectedVideo.url || `https://www.youtube.com/watch?v=${selectedVideo.video_id}`
-                        )
-                      }
-                    >
-                      Retry processing video
-                    </button>
-                  </div>
-                )}
-
-                {isReady && thread.length === 0 && (
-                  <div className={styles.emptyThread} data-testid="empty-thread">
-                    <p className={styles.emptyThreadTitle}>
-                      Ready to answer questions
-                    </p>
-                    <p className={styles.emptyThreadBody}>
-                      Ask anything about{" "}
-                      <strong>{selectedVideo.title || "this video"}</strong> below.
-                    </p>
-                  </div>
-                )}
-
-                {thread.map((message) => (
-                  <MessageBubble
-                    key={message.id}
-                    message={message}
-                    onSeek={handleSeek}
-                  />
-                ))}
-                <div ref={threadEndRef} />
-              </div>
-
-              {/* Docked Question Composer */}
-              {isReady && (
-                <QAComposer
-                  videoId={selectedVideo.video_id}
-                  hasMessages={thread.length > 0}
+              {/* Case 3: Conversation Selection View for this video */}
+              {selectionVideoId && selectionVideoId === selectedVideo.video_id ? (
+                <ConversationSelectionView
+                  video={selectedVideo}
+                  conversations={videoConversations}
+                  activeConversationId={activeConversationId}
+                  onSelectConversation={handleSelectFromPicker}
+                  onNewConversation={handleNewConversationForVideo}
                 />
+              ) : (
+                <>
+                  {/* Studio Header Bar */}
+                  <div className={styles.studioHeader}>
+                    <div className={styles.studioHeaderTitle}>
+                      <span>AI Research Studio</span>
+                    </div>
+
+                    <div className={styles.studioHeaderActions}>
+                      {/* Section 3 Case 3 / Switch conversation action */}
+                      {videoConversations.length > 1 && (
+                        <button
+                          type="button"
+                          className={styles.studioHeaderBtn}
+                          onClick={() => openConversationSelection(selectedVideo.video_id)}
+                          title="View all conversations for this video"
+                          data-testid="view-all-video-chats-button"
+                        >
+                          <MessageSquare size={12} />
+                          <span>All Chats ({videoConversations.length})</span>
+                        </button>
+                      )}
+
+                      {/* Section 4: New Conversation within current video */}
+                      <button
+                        type="button"
+                        className={`${styles.studioHeaderBtn} ${styles.studioHeaderBtnPrimary}`}
+                        onClick={handleNewConversationForVideo}
+                        title="Start a new conversation for this video"
+                        data-testid="new-conversation-for-video-button"
+                      >
+                        <span>+ New Chat</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Message Thread */}
+                  <div className={styles.threadWrap}>
+                    {isProcessing && (
+                      <div className={styles.centerState}>
+                        <Spinner size={24} />
+                        <p>
+                          Processing this video… it&apos;ll be ready to chat with shortly.
+                        </p>
+                      </div>
+                    )}
+
+                    {isFailed && (
+                      <div className={styles.centerState}>
+                        <p className={styles.errorText}>
+                          This video failed to process.
+                        </p>
+                        <button
+                          type="button"
+                          className={styles.retryLink}
+                          style={{ marginTop: "8px", cursor: "pointer" }}
+                          data-testid="retry-processing-button"
+                          onClick={() =>
+                            reprocessVideo(
+                              selectedVideo.video_id,
+                              selectedVideo.url || `https://www.youtube.com/watch?v=${selectedVideo.video_id}`
+                            )
+                          }
+                        >
+                          Retry processing video
+                        </button>
+                      </div>
+                    )}
+
+                    {isReady && thread.length === 0 && (
+                      <div className={styles.emptyThread} data-testid="empty-thread">
+                        <p className={styles.emptyThreadTitle}>
+                          Ready to answer questions
+                        </p>
+                        <p className={styles.emptyThreadBody}>
+                          Ask anything about{" "}
+                          <strong>{selectedVideo.title || "this video"}</strong> below.
+                        </p>
+                      </div>
+                    )}
+
+                    {thread.map((message) => (
+                      <MessageBubble
+                        key={message.id}
+                        message={message}
+                        onSeek={handleSeek}
+                      />
+                    ))}
+                    <div ref={threadEndRef} />
+                  </div>
+
+                  {/* Docked Question Composer */}
+                  {isReady && (
+                    <QAComposer
+                      videoId={selectedVideo.video_id}
+                      hasMessages={thread.length > 0}
+                    />
+                  )}
+                </>
               )}
             </div>
           </div>

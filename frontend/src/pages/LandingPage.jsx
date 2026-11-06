@@ -9,13 +9,16 @@ import {
   ArrowRight,
   Github,
   Linkedin,
-  CheckCircle2,
   ExternalLink,
   Search,
+  ChevronRight,
+  ChevronDown,
+  Film,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { API_BASE_URL } from '../api/client';
 import Spinner from '../components/common/Spinner';
+import Modal from '../components/common/Modal';
 import styles from './LandingPage.module.css';
 
 function GoogleIcon() {
@@ -45,6 +48,7 @@ export default function LandingPage() {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [activeModal, setActiveModal] = useState(null);
 
   const handleContinueWithGoogle = () => {
     if (isAuthenticated) {
@@ -95,9 +99,15 @@ export default function LandingPage() {
                 Open Workspace <ArrowRight size={14} />
               </Link>
             ) : (
-              <Link to="/register" className={styles.navCta} data-testid="nav-get-started-link">
+              <button
+                type="button"
+                className={styles.navCta}
+                onClick={handleContinueWithGoogle}
+                disabled={isRedirecting}
+                data-testid="nav-get-started-link"
+              >
                 Get Started
-              </Link>
+              </button>
             )}
           </nav>
         </div>
@@ -172,7 +182,7 @@ export default function LandingPage() {
           </div>
 
           <div className={styles.previewBody}>
-            {/* Preview Left Sidebar */}
+            {/* 1. Preview Left Sidebar (Flat Conversations & Collapsed Video Library) */}
             <div className={styles.previewSidebar}>
               <div className={styles.previewSidebarBrand}>
                 <div className={styles.previewBrandBadge}>▶</div>
@@ -186,87 +196,176 @@ export default function LandingPage() {
                 <span>New Chat</span>
               </div>
 
-              <div>
-                <p className={styles.previewSidebarSectionTitle}>Conversations</p>
-                <div className={`${styles.previewSidebarItem} ${styles.previewSidebarItemActive}`}>
-                  <MessageSquare size={13} />
-                  <span>Memory Bandwidth</span>
-                </div>
-                <div className={styles.previewSidebarItem}>
-                  <MessageSquare size={13} />
-                  <span>Hardware Latency</span>
+              <div className={styles.previewSearchWrap}>
+                <Search size={11} className={styles.previewSearchIcon} />
+                <span className={styles.previewSearchPlaceholder}>Search conversations…</span>
+              </div>
+
+              {/* Flat Conversations List */}
+              <div className={styles.previewSidebarGroup}>
+                <p className={styles.previewSidebarSectionTitle}>CONVERSATIONS</p>
+                <div className={styles.previewConvList}>
+                  {/* Active Conversation */}
+                  <div className={`${styles.previewConvItem} ${styles.previewConvItemActive}`}>
+                    <span className={styles.previewConvIconActive}>
+                      <MessageSquare size={13} />
+                    </span>
+                    <div className={styles.previewConvBody}>
+                      <div className={styles.previewConvTitleRow}>
+                        <span className={styles.previewConvTitle}>Explain GROUP BY &amp; HAVING</span>
+                      </div>
+                      <div className={styles.previewConvSubline}>
+                        <span className={styles.previewConvVideo}>
+                          <Film size={10} /> SQL Full Course 2026…
+                        </span>
+                        <span className={styles.previewConvTime}>2m ago</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Secondary Conversation 1 */}
+                  <div className={styles.previewConvItem}>
+                    <span className={styles.previewConvIcon}>
+                      <MessageSquare size={13} />
+                    </span>
+                    <div className={styles.previewConvBody}>
+                      <div className={styles.previewConvTitleRow}>
+                        <span className={styles.previewConvTitle}>SELECT statement &amp; filters</span>
+                      </div>
+                      <div className={styles.previewConvSubline}>
+                        <span className={styles.previewConvVideo}>
+                          <Film size={10} /> SQL Full Course 2026…
+                        </span>
+                        <span className={styles.previewConvTime}>1h ago</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Secondary Conversation 2 */}
+                  <div className={styles.previewConvItem}>
+                    <span className={styles.previewConvIcon}>
+                      <MessageSquare size={13} />
+                    </span>
+                    <div className={styles.previewConvBody}>
+                      <div className={styles.previewConvTitleRow}>
+                        <span className={styles.previewConvTitle}>Indexing &amp; B-Tree structures</span>
+                      </div>
+                      <div className={styles.previewConvSubline}>
+                        <span className={styles.previewConvVideo}>
+                          <Film size={10} /> Database Systems…
+                        </span>
+                        <span className={styles.previewConvTime}>Yesterday</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <p className={styles.previewSidebarSectionTitle}>Video Library</p>
-                <div className={`${styles.previewSidebarItem} ${styles.previewSidebarItemActive}`}>
-                  <div className={styles.previewThumb}>
-                    <img
-                      src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=80&q=80"
-                      alt="CS229 Seminar"
-                    />
+              {/* Collapsed Video Library Header */}
+              <div className={styles.previewSidebarGroup}>
+                <div className={styles.previewLibraryHeaderRow}>
+                  <div className={styles.previewLibraryToggle}>
+                    <ChevronRight size={13} className={styles.previewLibraryChevron} />
+                    <span className={styles.previewSidebarSectionTitle}>VIDEO LIBRARY</span>
+                    <span className={styles.previewLibraryCount}>(2)</span>
                   </div>
-                  <div>
-                    <div style={{ fontSize: '12px', fontWeight: 600 }}>CS229 Seminar</div>
-                    <div style={{ fontSize: '11px', color: 'var(--success-500, #22c55e)' }}>● Ready</div>
-                  </div>
+                  <span className={styles.previewAddLink}>+ Add</span>
+                </div>
+              </div>
+
+              {/* User Profile Footer in Sidebar */}
+              <div className={styles.previewSidebarUser}>
+                <div className={styles.previewUserAvatar}>A</div>
+                <div className={styles.previewUserInfo}>
+                  <span className={styles.previewUserName}>Ashik Raj</span>
+                  <span className={styles.previewUserEmail}>ash09876k@gmail.com</span>
+                </div>
+                <ChevronDown size={12} className={styles.previewUserChevron} />
+              </div>
+            </div>
+
+            {/* 2. Preview Center Video Player Stage */}
+            <div className={styles.previewVideoStage}>
+              <div className={styles.previewPlayerBox}>
+                <img
+                  src="https://images.unsplash.com/photo-1544383835-bda2bc66a55d?w=800&q=80"
+                  alt="Video Stage Thumbnail"
+                  className={styles.previewPlayerPoster}
+                />
+                <div className={styles.previewPlayerOverlay}>
+                  <div className={styles.previewBigPlayBtn}>▶</div>
+                </div>
+                <div className={styles.previewPlayerTopBar}>
+                  <span>SQL Full Course 2026–2027 | Beginner to Advanced</span>
+                </div>
+                <div className={styles.previewPlayerBottomPill}>
+                  <span>Watch on YouTube</span>
+                </div>
+              </div>
+
+              <div className={styles.previewVideoDetails}>
+                <div className={styles.previewVideoTitleRow}>
+                  <h4 className={styles.previewVideoMainTitle}>
+                    SQL Full Course 2026–2027 | Beginner to Advanced | Complete SQL Tutorial
+                  </h4>
+                  <span className={styles.previewReadyTag}>● Ready</span>
+                </div>
+                <div className={styles.previewVideoActions}>
+                  <span className={styles.previewActionBtn}>
+                    <ExternalLink size={12} /> Watch on YouTube
+                  </span>
+                  <span className={styles.previewActionBtn}>
+                    Copy Link
+                  </span>
                 </div>
               </div>
             </div>
 
-            {/* Preview Center/Right Workspace */}
-            <div className={styles.previewMain}>
-              <div className={styles.previewHeader}>
-                <div className={styles.previewHeaderVideo}>
-                  <div className={styles.previewThumb}>
-                    <img
-                      src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=80&q=80"
-                      alt=""
-                    />
-                  </div>
-                  <div>
-                    <div className={styles.previewHeaderTitle}>
-                      Stanford CS229: Deep Learning &amp; Hardware Latency
-                    </div>
-                    <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                      Stanford University • 423 segments indexed
-                    </div>
-                  </div>
+            {/* 3. Preview Right AI Research Studio */}
+            <div className={styles.previewResearchStudio}>
+              <div className={styles.previewStudioHeader}>
+                <div className={styles.previewStudioTitleWrap}>
+                  <span className={styles.previewStudioTitle}>AI Research Studio</span>
                 </div>
-                <span className={styles.previewStatusBadge}>
-                  <CheckCircle2 size={11} /> Ready
-                </span>
+                <div className={styles.previewStudioActions}>
+                  <span className={styles.previewAllChatsBtn}>
+                    <MessageSquare size={11} /> All Chats (2)
+                  </span>
+                  <span className={styles.previewNewChatMiniBtn}>+ New Chat</span>
+                </div>
               </div>
 
               <div className={styles.previewChatFeed}>
                 <div className={styles.previewQuestion}>
-                  <span>What does the lecturer say about memory wall bottlenecks?</span>
+                  <span>Explain how GROUP BY and HAVING clauses filter aggregated records.</span>
                 </div>
 
                 <div className={styles.previewAnswerCard}>
                   <div className={styles.previewAiAvatar}>YG</div>
                   <div className={styles.previewAnswerBody}>
                     <p style={{ margin: 0, marginBottom: '8px' }}>
-                      The lecturer explains that memory wall bottlenecks occur when compute throughput
-                      outpaces DRAM bandwidth, forcing arithmetic logic units to idle during matrix
-                      multiplications. Recent high-bandwidth memory (HBM) architectures attempt to bridge
-                      this divergence.
+                      In SQL, the <code>WHERE</code> clause filters rows before aggregation occurs, whereas the <code>HAVING</code> clause filters the resulting groups created by <code>GROUP BY</code>. For example, <code>HAVING COUNT(*) &gt; 5</code> restricts output strictly to groups with more than 5 rows.
                     </p>
                     <div className={styles.previewSourcesRow}>
-                      <span className={styles.previewSourcesLabel}>Sources:</span>
+                      <span className={styles.previewSourcesLabel}>Grounded Citations:</span>
                       <span className={styles.previewSourceChip}>
-                        ⏱ 04:12 <ExternalLink size={10} />
+                        ⏱ 14:22 <ExternalLink size={10} />
                       </span>
                       <span className={styles.previewSourceChip}>
-                        ⏱ 12:45 <ExternalLink size={10} />
+                        ⏱ 28:45 <ExternalLink size={10} />
                       </span>
                       <span className={styles.previewSourceChip}>
-                        ⏱ 18:30 <ExternalLink size={10} />
+                        ⏱ 42:10 <ExternalLink size={10} />
                       </span>
                     </div>
                   </div>
                 </div>
+              </div>
+
+              <div className={styles.previewStartersRow}>
+                <span className={styles.previewStartersLabel}>Suggested:</span>
+                <span className={styles.previewStarterChip}>💡 Summarize key takeaways in 3 bullet points</span>
+                <span className={styles.previewStarterChip}>💡 Explain core concepts and methodology</span>
               </div>
 
               <div className={styles.previewComposer}>
@@ -427,10 +526,11 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ---- Footer (the single landing-page footer) ---- */}
+      {/* ---- Footer (Appropriate for Final-Year Student Project) ---- */}
       <footer className={styles.footer}>
         <div className={styles.footerContainer}>
           <div className={styles.footerGrid}>
+            {/* Col 1: Project Identity & Developer Attribution */}
             <div className={styles.footerBrandCol}>
               <div className={styles.footerBrand}>
                 <div className={styles.brandLogoIconSmall}>▶</div>
@@ -438,15 +538,23 @@ export default function LandingPage() {
                   <span className={styles.brandYt}>Yt</span><span className={styles.brandGenius}>Genius</span>
                 </span>
               </div>
-              <p className={styles.footerTagline}>Turn YouTube videos into interactive knowledge.</p>
+              <p className={styles.footerTagline}>
+                Intelligent YouTube video Q&amp;A system grounded strictly in transcript context with interactive timestamp citations.
+              </p>
+              <p className={styles.footerAttribution}>
+                Final-Year Engineering Project
+                <br />
+                <span className={styles.footerAuthor}>Developed by Ashik Raj</span>
+              </p>
               <div className={styles.footerSocial}>
                 <a
-                  href="https://github.com/rajashik-web"
+                  href="https://github.com/rajashik-web/youtube-qa-assistant"
                   target="_blank"
                   rel="noopener noreferrer"
                   className={styles.socialLink}
                   aria-label="YtGenius on GitHub"
                   data-testid="footer-github-link"
+                  title="Source Code on GitHub"
                 >
                   <Github size={16} />
                 </a>
@@ -455,14 +563,16 @@ export default function LandingPage() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className={styles.socialLink}
-                  aria-label="YtGenius on LinkedIn"
+                  aria-label="Ashik Raj on LinkedIn"
                   data-testid="footer-linkedin-link"
+                  title="Ashik Raj on LinkedIn"
                 >
                   <Linkedin size={16} />
                 </a>
               </div>
             </div>
 
+            {/* Col 2: Product */}
             <div className={styles.footerCol}>
               <h3 className={styles.footerColTitle}>Product</h3>
               <a
@@ -477,49 +587,193 @@ export default function LandingPage() {
                 className={styles.footerLink}
                 onClick={(e) => scrollToSection(e, 'how-it-works')}
               >
-                How it works
+                How It Works
               </a>
-              <Link to="/register" className={styles.footerLink}>
+              <button
+                type="button"
+                className={styles.footerLinkBtn}
+                onClick={handleContinueWithGoogle}
+                disabled={isRedirecting}
+                data-testid="footer-get-started-btn"
+              >
                 Get Started
-              </Link>
+              </button>
             </div>
 
-            <div className={styles.footerCol}>
-              <h3 className={styles.footerColTitle}>Account</h3>
-              <Link to="/login" className={styles.footerLink} data-testid="footer-sign-in-link">
-                Sign in
-              </Link>
-              <Link to="/register" className={styles.footerLink}>
-                Create account
-              </Link>
-            </div>
-
+            {/* Col 3: Resources & Tech Stack */}
             <div className={styles.footerCol}>
               <h3 className={styles.footerColTitle}>Resources</h3>
               <a
-                href="#features"
-                className={styles.footerLink}
-                onClick={(e) => scrollToSection(e, 'features')}
-              >
-                YouTube Video Q&amp;A
-              </a>
-              <a
-                href="https://github.com/rajashik-web"
+                href="https://github.com/rajashik-web/youtube-qa-assistant"
                 target="_blank"
                 rel="noopener noreferrer"
                 className={styles.footerLink}
+                data-testid="footer-repo-link"
+              >
+                GitHub Repository
+              </a>
+              <a
+                href="https://github.com/rajashik-web/youtube-qa-assistant#readme"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.footerLink}
+                data-testid="footer-docs-link"
               >
                 Documentation
               </a>
+              <button
+                type="button"
+                className={styles.footerLinkBtn}
+                onClick={() => setActiveModal('tech')}
+                data-testid="footer-tech-stack-btn"
+              >
+                Technology Stack
+              </button>
+            </div>
+
+            {/* Col 4: Legal & Notice */}
+            <div className={styles.footerCol}>
+              <h3 className={styles.footerColTitle}>Legal &amp; Notice</h3>
+              <button
+                type="button"
+                className={styles.footerLinkBtn}
+                onClick={() => setActiveModal('privacy')}
+                data-testid="footer-privacy-btn"
+              >
+                Privacy Policy
+              </button>
+              <button
+                type="button"
+                className={styles.footerLinkBtn}
+                onClick={() => setActiveModal('terms')}
+                data-testid="footer-terms-btn"
+              >
+                Terms of Service
+              </button>
+              <button
+                type="button"
+                className={styles.footerLinkBtn}
+                onClick={() => setActiveModal('academic')}
+                data-testid="footer-academic-btn"
+              >
+                Academic Notice
+              </button>
             </div>
           </div>
 
           <div className={styles.footerBottom}>
-            <p className={styles.footerMeta}>© 2026 YtGenius. All rights reserved.</p>
-            <p className={styles.footerMeta}>Built with React, FastAPI &amp; Qdrant.</p>
+            <p className={styles.footerMeta}>© {new Date().getFullYear()} YtGenius • Ashik Raj. All rights reserved.</p>
+            <p className={styles.footerMeta}>Academic Capstone Project • Built with React, FastAPI, Qdrant &amp; Groq.</p>
           </div>
         </div>
       </footer>
+
+      {/* Privacy Policy Modal */}
+      <Modal
+        isOpen={activeModal === 'privacy'}
+        onClose={() => setActiveModal(null)}
+        title="Privacy Policy"
+        cancelLabel="Close"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px', lineHeight: '1.5', maxHeight: '350px', overflowY: 'auto' }}>
+          <p>
+            At YtGenius, data privacy and transparency are fundamental design principles:
+          </p>
+          <p>
+            <strong>1. Ephemeral Query Processing:</strong> Questions submitted to YtGenius are processed in volatile server memory solely to perform retrieval and synthesize transcript citations. User inquiries are never sold or used for public AI model training.
+          </p>
+          <p>
+            <strong>2. Canonical Transcript Caching:</strong> Public closed captions from YouTube are indexed to enable semantic search and timestamp citations. Transcripts are cached locally to minimize redundant external API roundtrips.
+          </p>
+          <p>
+            <strong>3. User Data Ownership:</strong> You retain full rights to your conversation history. You can view, export, or permanently erase your history and account at any time via Settings.
+          </p>
+        </div>
+      </Modal>
+
+      {/* Terms of Service Modal */}
+      <Modal
+        isOpen={activeModal === 'terms'}
+        onClose={() => setActiveModal(null)}
+        title="Terms of Service"
+        cancelLabel="Close"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px', lineHeight: '1.5', maxHeight: '350px', overflowY: 'auto' }}>
+          <p>
+            By using YtGenius, you agree to the following conditions:
+          </p>
+          <p>
+            <strong>1. YouTube Developer Terms Compliance:</strong> YtGenius accesses publicly available YouTube metadata and closed captions in accordance with YouTube Developer policies. Video playback occurs via the official embedded YouTube player.
+          </p>
+          <p>
+            <strong>2. Grounded Answers:</strong> AI summaries and answers are derived algorithmically based on retrieved transcript text. Users should review critical assertions against source timestamps.
+          </p>
+          <p>
+            <strong>3. Educational &amp; Research Use:</strong> This application is intended for personal research, educational study, and engineering demonstration. Automated abusive querying or scraping is prohibited.
+          </p>
+        </div>
+      </Modal>
+
+      {/* Technology Stack Modal */}
+      <Modal
+        isOpen={activeModal === 'tech'}
+        onClose={() => setActiveModal(null)}
+        title="System Architecture &amp; Technology Stack"
+        cancelLabel="Close"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px', lineHeight: '1.5', maxHeight: '350px', overflowY: 'auto' }}>
+          <p>
+            YtGenius is engineered with a modern high-performance decoupled architecture:
+          </p>
+          <div>
+            <strong style={{ color: 'var(--text-primary)' }}>• Frontend:</strong>
+            <p style={{ margin: '2px 0 0', color: 'var(--text-secondary)' }}>
+              React 18, Vite, React Router, CSS Modules with custom dark design system and responsive layout.
+            </p>
+          </div>
+          <div>
+            <strong style={{ color: 'var(--text-primary)' }}>• Backend API:</strong>
+            <p style={{ margin: '2px 0 0', color: 'var(--text-secondary)' }}>
+              Python FastAPI with asynchronous endpoints, SQLAlchemy ORM, and JWT + Google OAuth 2.0 authentication.
+            </p>
+          </div>
+          <div>
+            <strong style={{ color: 'var(--text-primary)' }}>• Vector &amp; Relational Storage:</strong>
+            <p style={{ margin: '2px 0 0', color: 'var(--text-secondary)' }}>
+              Qdrant Cloud vector database for fast semantic similarity search over transcript chunks; PostgreSQL for relational user and conversation state.
+            </p>
+          </div>
+          <div>
+            <strong style={{ color: 'var(--text-primary)' }}>• AI &amp; Embeddings:</strong>
+            <p style={{ margin: '2px 0 0', color: 'var(--text-secondary)' }}>
+              SentenceTransformers (all-MiniLM-L6-v2) for 384-dimensional dense embeddings and Groq LLM API for low-latency cited synthesis.
+            </p>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Academic Notice Modal */}
+      <Modal
+        isOpen={activeModal === 'academic'}
+        onClose={() => setActiveModal(null)}
+        title="Academic Project Information"
+        cancelLabel="Close"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px', lineHeight: '1.5' }}>
+          <p>
+            <strong>Final-Year Engineering Capstone Project</strong>
+          </p>
+          <p style={{ color: 'var(--text-secondary)' }}>
+            YtGenius was conceived, designed, and developed by <strong>Ashik Raj</strong> as an undergraduate final-year engineering capstone project.
+          </p>
+          <p style={{ color: 'var(--text-secondary)' }}>
+            This project explores vector retrieval-augmented generation (RAG), transcript segmentation algorithms, and citation verification for long-form video knowledge extraction.
+          </p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '4px' }}>
+            Disclaimer: YtGenius is an independent student academic project and is not affiliated with, sponsored by, or endorsed by Google LLC or YouTube.
+          </p>
+        </div>
+      </Modal>
     </div>
   );
 }
