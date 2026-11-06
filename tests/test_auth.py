@@ -547,3 +547,35 @@ async def test_google_oauth_conflicting_google_id_rejected(db):
             email=email,
             username="UserB",
         )
+
+
+@pytest.mark.asyncio
+async def test_google_callback_redirects_with_access_and_refresh_tokens(async_client, monkeypatch):
+    """Verify that GET /auth/google/callback issues both an access_token and 7-day refresh_token in query params."""
+    from unittest.mock import AsyncMock, MagicMock
+    from app.routers import auth as auth_router
+
+    fake_user_info = {
+        "sub": "google_test_sub_tokens_123",
+        "email": "tokens_tester@example.com",
+        "name": "Token Tester",
+        "email_verified": True,
+    }
+
+    mock_oauth = MagicMock()
+    mock_google = MagicMock()
+    mock_google.authorize_access_token = AsyncMock(
+        return_value={"access_token": "google_raw_access", "userinfo": fake_user_info}
+    )
+    mock_oauth.google = mock_google
+    monkeypatch.setattr(auth_router, "oauth", mock_oauth)
+
+    response = await async_client.get(
+        "/auth/google/callback?code=mock_code&state=mock_state",
+        follow_redirects=False,
+    )
+    assert response.status_code == 307
+    location = response.headers.get("location", "")
+    assert "/oauth/callback" in location
+    assert "token=" in location
+    assert "refresh_token=" in location

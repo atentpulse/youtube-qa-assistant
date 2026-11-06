@@ -23,6 +23,7 @@ export default function OAuthCallbackPage() {
       }
 
       const token = searchParams.get('token');
+      const refreshTokenParam = searchParams.get('refresh_token');
       if (!token) {
         if (!cancelled) {
           setErrorMessage('No authentication token found in callback URL.');
@@ -31,7 +32,7 @@ export default function OAuthCallbackPage() {
       }
 
       try {
-        await completeOAuthLogin(token);
+        await completeOAuthLogin(token, refreshTokenParam);
         if (!cancelled) {
           navigate('/app', { replace: true });
         }

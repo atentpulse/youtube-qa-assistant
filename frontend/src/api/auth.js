@@ -32,8 +32,9 @@ export function registerWithCredentials({ email, password, username }, opts) {
  * Refresh an existing authentication token.
  * Backend contract: POST /auth/refresh
  */
-export function refreshToken(opts) {
-  return apiClient.post('/auth/refresh', {}, opts);
+export function refreshToken(data = {}, opts) {
+  const body = data?.refresh_token ? { refresh_token: data.refresh_token } : {};
+  return apiClient.post('/auth/refresh', body, opts);
 }
 
 /**

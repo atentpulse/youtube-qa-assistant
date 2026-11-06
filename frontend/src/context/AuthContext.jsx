@@ -1,7 +1,13 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { getCurrentUser, loginWithCredentials, registerWithCredentials, refreshToken } from '../api/auth';
 import { apiClient } from '../api/client';
-import { getToken, setToken as persistToken, clearToken } from '../utils/tokenStorage';
+import {
+  getToken,
+  getRefreshToken,
+  setToken as persistToken,
+  setRefreshToken as persistRefreshToken,
+  clearToken,
+} from '../utils/tokenStorage';
 
 const AuthContext = createContext(null);
 
@@ -9,10 +15,8 @@ const AuthContext = createContext(null);
 // 'authenticated' — valid token + user loaded.
 // 'unauthenticated' — no token, or the token was rejected/cleared.
 //
-// Sessions are established three ways: email/password login (JWT),
-// email registration followed by email verification + sign in, and
-// completeOAuthLogin(), called by OAuthCallbackPage once the
-// backend has redirected back with a JWT already issued.
+// YtGenius exclusively supports Google OAuth authentication. Sessions
+// persist with a 60-minute access token and a 7-day refresh token.
 export function AuthProvider({ children }) {
   const [token, setTokenState] = useState(() => getToken());
   const [user, setUser] = useState(null);
@@ -27,30 +31,56 @@ export function AuthProvider({ children }) {
 
   const restoreSession = useCallback(async () => {
     const storedToken = getToken();
+    const storedRefreshToken = getRefreshToken();
 
-    if (!storedToken) {
+    if (!storedToken && !storedRefreshToken) {
       setAuthStatus('unauthenticated');
       return;
     }
 
-    setTokenState(storedToken);
-    // Keep the API client's in-memory token in sync with persisted storage,
-    // otherwise the Authorization header is never attached after a reload.
-    apiClient.setToken(storedToken);
+    if (storedToken) {
+      setTokenState(storedToken);
+      apiClient.setToken(storedToken);
 
-    try {
-      const me = await getCurrentUser();
-      setUser(me);
-      setAuthStatus('authenticated');
-    } catch {
-      // Token missing/invalid/expired (401) or unreachable backend — either
-      // way we can't trust it. api/client.js already clears it from storage
-      // on a 401; clear it here too in case this failed for another reason.
-      clearToken();
-      setTokenState(null);
-      setUser(null);
-      setAuthStatus('unauthenticated');
+      try {
+        const me = await getCurrentUser();
+        setUser(me);
+        setAuthStatus('authenticated');
+        return;
+      } catch {
+        // Access token expired or invalid; attempt automatic refresh below
+      }
     }
+
+    // Attempt automatic refresh if refresh token is present
+    if (storedRefreshToken) {
+      try {
+        const res = await refreshToken({ refresh_token: storedRefreshToken });
+        const newAccess = res?.access_token || res?.token;
+        const newRefresh = res?.refresh_token;
+        if (newAccess) {
+          persistToken(newAccess);
+          if (newRefresh) {
+            persistRefreshToken(newRefresh);
+          }
+          setTokenState(newAccess);
+          apiClient.setToken(newAccess);
+
+          const me = await getCurrentUser();
+          setUser(me);
+          setAuthStatus('authenticated');
+          return;
+        }
+      } catch {
+        // Refresh token invalid or expired
+      }
+    }
+
+    // If both access token and refresh attempt failed
+    clearToken();
+    setTokenState(null);
+    setUser(null);
+    setAuthStatus('unauthenticated');
   }, []);
 
   // Restore session once on startup.
@@ -58,14 +88,30 @@ export function AuthProvider({ children }) {
     restoreSession();
   }, [restoreSession]);
 
-  // A 401 from ANY request (dispatched centrally by api/client.js) means
-  // the token is no longer valid. Storage is already cleared by client.js;
-  // this keeps in-memory auth state in sync and surfaces a friendly
-  // "session expired" message on the next /login render. ProtectedRoute
-  // reacts to isAuthenticated becoming false and redirects there itself —
-  // this handler does not navigate, avoiding any redirect-loop risk.
+  // A 401 from ANY request: try token refresh before ending session
   useEffect(() => {
-    const onUnauthorized = () => {
+    const onUnauthorized = async () => {
+      const storedRefreshToken = getRefreshToken();
+      if (storedRefreshToken) {
+        try {
+          const res = await refreshToken({ refresh_token: storedRefreshToken });
+          const newAccess = res?.access_token || res?.token;
+          const newRefresh = res?.refresh_token;
+          if (newAccess) {
+            persistToken(newAccess);
+            if (newRefresh) persistRefreshToken(newRefresh);
+            setTokenState(newAccess);
+            apiClient.setToken(newAccess);
+            const me = await getCurrentUser();
+            setUser(me);
+            setAuthStatus('authenticated');
+            return;
+          }
+        } catch {
+          // Refresh failed
+        }
+      }
+      clearToken();
       setTokenState(null);
       setUser(null);
       setAuthStatus('unauthenticated');
@@ -78,14 +124,14 @@ export function AuthProvider({ children }) {
   /**
    * Completes the Google OAuth flow. The backend has already verified the
    * user with Google and issued a JWT, redirecting the browser to
-   * /oauth/callback?token=<jwt>. This stores that token through the same
-   * centralized tokenStorage used everywhere else, then restores the user
-   * via GET /auth/me — the same restoration path used on a normal reload.
-   * Throws on failure so the callback page can show its own error state;
-   * auth state is left cleared either way.
+   * /oauth/callback?token=<jwt>&refresh_token=<jwt>. This stores both tokens
+   * through centralized tokenStorage, then restores the user via GET /auth/me.
    */
-  const completeOAuthLogin = useCallback(async (rawToken) => {
+  const completeOAuthLogin = useCallback(async (rawToken, rawRefreshToken = null) => {
     persistToken(rawToken);
+    if (rawRefreshToken) {
+      persistRefreshToken(rawRefreshToken);
+    }
     setTokenState(rawToken);
     apiClient.setToken(rawToken);
 
@@ -136,11 +182,17 @@ export function AuthProvider({ children }) {
 
   const refreshSession = useCallback(async () => {
     try {
-      const res = await refreshToken();
+      const storedRefreshToken = getRefreshToken();
+      const res = await refreshToken(storedRefreshToken ? { refresh_token: storedRefreshToken } : {});
       const rawToken = res?.access_token || res?.token;
+      const rawRefresh = res?.refresh_token;
       if (rawToken) {
         persistToken(rawToken);
+        if (rawRefresh) {
+          persistRefreshToken(rawRefresh);
+        }
         setTokenState(rawToken);
+        apiClient.setToken(rawToken);
       }
     } catch {
       // Ignore refresh failures if unauthenticated

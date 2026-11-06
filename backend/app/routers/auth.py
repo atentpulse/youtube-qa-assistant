@@ -536,10 +536,15 @@ async def google_callback(
             )
         )
 
+        payload = decode_token(access_token)
+        user_id = int(payload["sub"])
+        refresh_token = create_refresh_token(user_id=user_id)
+
         return RedirectResponse(
             url=(
                 f"{FRONTEND_URL}/oauth/callback"
                 f"?token={urllib.parse.quote(access_token)}"
+                f"&refresh_token={urllib.parse.quote(refresh_token)}"
             )
         )
 

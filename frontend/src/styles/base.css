@@ -10,6 +10,8 @@ html {
   margin: 0;
   padding: 0;
   scroll-behavior: smooth;
+  background-color: var(--bg-canvas, #0f0f0f);
+  overscroll-behavior-y: none;
 }
 
 body {
@@ -21,10 +23,11 @@ body {
   font-size: 15px;
   line-height: 1.55;
   color: var(--text-primary);
-  background: var(--bg-canvas);
+  background-color: var(--bg-canvas, #0f0f0f);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  overflow-x: hidden;
+  overflow-x: clip;
+  overscroll-behavior-y: none;
 }
 
 #root {
