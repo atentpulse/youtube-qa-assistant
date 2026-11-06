@@ -22,8 +22,10 @@ export function getConversationMessages(id, opts = {}) {
   return apiClient.get(`/conversations/${id}/messages`, { ...rest, params });
 }
 
-export function createConversation({ title = 'New Chat' } = {}, opts) {
-  return apiClient.post('/conversations', { title }, opts);
+export function createConversation({ title = 'New Chat', video_id = null } = {}, opts) {
+  const body = { title };
+  if (video_id) body.video_id = video_id;
+  return apiClient.post('/conversations', body, opts);
 }
 
 export function renameConversation(id, title, opts) {

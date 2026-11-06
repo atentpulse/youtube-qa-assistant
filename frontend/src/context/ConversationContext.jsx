@@ -9,6 +9,7 @@ import {
 import { ApiError } from '../api/client';
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
+import { VideoLibraryContext } from './VideoLibraryContext';
 
 const ConversationContext = createContext(null);
 
@@ -23,21 +24,23 @@ const initialState = {
   messagesError: null,
   nextCursor: null,
   hasMore: false,
-  // Client-side mapping: conversationId -> videoId.
-  //
-  // The backend Conversation/Message models have NO video_id field, so we
-  // track this locally to know which video a conversation belongs to.
-  // This mapping is in-memory only and is lost on page refresh — the
-  // backend remains the source of truth for persisted messages.
-  conversationVideoMap: {},
 };
 
 function reducer(state, action) {
   switch (action.type) {
     case 'FETCH_CONVERSATIONS_START':
       return { ...state, conversationsStatus: 'loading', conversationsError: null };
-    case 'FETCH_CONVERSATIONS_SUCCESS':
-      return { ...state, conversationsStatus: 'ready', conversations: action.conversations };
+    case 'FETCH_CONVERSATIONS_SUCCESS': {
+      const activeConv = state.activeConversationId
+        ? action.conversations.find((c) => c.id === state.activeConversationId) || state.activeConversation
+        : null;
+      return {
+        ...state,
+        conversationsStatus: 'ready',
+        conversations: action.conversations,
+        activeConversation: activeConv,
+      };
+    }
     case 'FETCH_CONVERSATIONS_ERROR':
       return { ...state, conversationsStatus: 'error', conversationsError: action.error };
     case 'SELECT_CONVERSATION':
@@ -87,6 +90,7 @@ function reducer(state, action) {
                   ...c,
                   ...conversation,
                   title: conversation.title || c.title,
+                  video_id: conversation.video_id || c.video_id,
                 }
               : c
           )
@@ -101,14 +105,9 @@ function reducer(state, action) {
               ...state.activeConversation,
               ...conversation,
               title: conversation.title || state.activeConversation?.title,
+              video_id: conversation.video_id || state.activeConversation?.video_id,
             }
           : conversation,
-        conversationVideoMap: action.videoId
-          ? {
-              ...state.conversationVideoMap,
-              [conversation.id]: action.videoId,
-            }
-          : state.conversationVideoMap,
       };
     }
     case 'CONVERSATION_UPDATED': {
@@ -123,12 +122,9 @@ function reducer(state, action) {
     case 'CONVERSATION_DELETED': {
       const conversations = state.conversations.filter((c) => c.id !== action.conversationId);
       const isActive = state.activeConversationId === action.conversationId;
-      const nextVideoMap = { ...state.conversationVideoMap };
-      delete nextVideoMap[action.conversationId];
       return {
         ...state,
         conversations,
-        conversationVideoMap: nextVideoMap,
         ...(isActive
           ? {
               activeConversationId: null,
@@ -163,8 +159,12 @@ function reducer(state, action) {
 export function ConversationProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const { isAuthenticated, loading: authLoading } = useAuth();
+  const videoLib = useContext(VideoLibraryContext);
+  const selectedVideoId = videoLib?.selectedVideoId;
+  const selectVideo = videoLib?.selectVideo;
   const toast = useToast();
   const messageRequestSeq = useRef(0);
+  const previousVideoIdRef = useRef(selectedVideoId);
 
   const loadConversations = useCallback(async () => {
     dispatch({ type: 'FETCH_CONVERSATIONS_START' });
@@ -195,13 +195,44 @@ export function ConversationProvider({ children }) {
     }
   }, []);
 
+  // One-tap conversation access (Bug 5 & Bug 6):
+  // Selecting a conversation immediately sets activeConversation AND restores its bound video
   const selectConversation = useCallback(
     (conversationId) => {
+      const conv = state.conversations.find((c) => c.id === conversationId);
       dispatch({ type: 'SELECT_CONVERSATION', conversationId });
       loadConversationMessages(conversationId);
+
+      if (conv?.video_id && selectVideo && conv.video_id !== selectedVideoId) {
+        selectVideo(conv.video_id);
+      }
     },
-    [loadConversationMessages]
+    [state.conversations, loadConversationMessages, selectVideo, selectedVideoId]
   );
+
+  // Maintain video and conversation context alignment (Bug 6 & Redesign):
+  // When the selected video changes, ensure any mismatched active conversation is cleared.
+  useEffect(() => {
+    if (selectedVideoId !== previousVideoIdRef.current) {
+      previousVideoIdRef.current = selectedVideoId;
+
+      if (!selectedVideoId) {
+        dispatch({ type: 'CLEAR_ACTIVE' });
+        return;
+      }
+
+      // If active conversation already matches newly selected video, keep it
+      if (state.activeConversation?.video_id === selectedVideoId) {
+        return;
+      }
+
+      // Otherwise, clear active conversation to prevent cross-video state mismatch
+      dispatch({ type: 'CLEAR_ACTIVE' });
+    }
+  }, [
+    selectedVideoId,
+    state.activeConversation?.video_id,
+  ]);
 
   const loadOlderMessages = useCallback(async () => {
     if (!state.activeConversationId || !state.nextCursor) return;
@@ -222,10 +253,17 @@ export function ConversationProvider({ children }) {
   }, [state.activeConversationId, state.nextCursor]);
 
   const createConversation = useCallback(
-    async (title = null) => {
+    async (title = null, videoId = null) => {
       try {
-        const conversation = await apiCreateConversation({ title });
-        dispatch({ type: 'CONVERSATION_CREATED', conversation, videoId: null });
+        const targetVideoId = videoId || selectedVideoId;
+        const conversation = await apiCreateConversation({
+          title: title || 'New Chat',
+          video_id: targetVideoId,
+        });
+        dispatch({
+          type: 'CONVERSATION_CREATED',
+          conversation,
+        });
         return conversation;
       } catch (err) {
         const message = err instanceof ApiError ? err.message : 'Could not create conversation.';
@@ -233,7 +271,7 @@ export function ConversationProvider({ children }) {
         throw err;
       }
     },
-    [toast]
+    [selectedVideoId, toast]
   );
 
   const renameConversation = useCallback(
@@ -276,20 +314,17 @@ export function ConversationProvider({ children }) {
 
   const registerConversation = useCallback(
     (conversationId, videoId, initialTitle = null) => {
-      // The /ask endpoint auto-creates the conversation. We add a minimal
-      // entry locally and refresh the list to get the auto-generated title.
       const now = new Date().toISOString();
       dispatch({
         type: 'CONVERSATION_CREATED',
         conversation: {
           id: conversationId,
           title: initialTitle,
+          video_id: videoId,
           created_at: now,
           updated_at: now,
         },
-        videoId,
       });
-      // Refresh the list to pick up the auto-generated title + ordering.
       loadConversations();
     },
     [loadConversations]

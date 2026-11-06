@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Film } from 'lucide-react';
+import { Film, MessageSquare } from 'lucide-react';
 import { useVideoLibrary } from '../../context/VideoLibraryContext';
-import { useConversations } from '../../context/ConversationContext';
 import { useUI } from '../../context/UIContext';
 import { VIDEO_STATUS } from '../../utils/constants';
 import Modal from '../common/Modal';
@@ -30,9 +29,14 @@ function StatusDot({ status }) {
   );
 }
 
-export default function VideoLibraryItem({ video, isSelected, isCollapsed }) {
+export default function VideoLibraryItem({
+  video,
+  isSelected,
+  isCollapsed,
+  conversationCount = 0,
+  onSelectVideo,
+}) {
   const { selectVideo, removeVideo, reprocessVideo } = useVideoLibrary();
-  const { clearActiveConversation } = useConversations();
   const { closeComposer } = useUI();
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
@@ -81,9 +85,12 @@ export default function VideoLibraryItem({ video, isSelected, isCollapsed }) {
   }, [menuOpen]);
 
   const handleSelect = () => {
-    selectVideo(video.video_id);
-    clearActiveConversation();
-    closeComposer();
+    if (onSelectVideo) {
+      onSelectVideo(video);
+    } else {
+      selectVideo(video.video_id);
+      closeComposer();
+    }
     setMenuOpen(false);
   };
 
@@ -120,7 +127,7 @@ export default function VideoLibraryItem({ video, isSelected, isCollapsed }) {
   };
 
   if (isCollapsed) {
-    const tooltipText = `${video.title || 'Video'} (● ${statusLabels[video.status] || video.status})`;
+    const tooltipText = `${video.title || 'Video'} (${statusLabels[video.status] || video.status} • ${conversationCount} ${conversationCount === 1 ? 'chat' : 'chats'})`;
     return (
       <li
         className={`${styles.itemCollapsed} ${isSelected ? styles.itemSelected : ''}`}
@@ -156,6 +163,7 @@ export default function VideoLibraryItem({ video, isSelected, isCollapsed }) {
         tabIndex={0}
         onKeyDown={(e) => e.key === 'Enter' && handleSelect()}
         aria-pressed={isSelected}
+        data-testid="video-library-item"
       >
         {video.thumbnail_url ? (
           <img
@@ -177,6 +185,11 @@ export default function VideoLibraryItem({ video, isSelected, isCollapsed }) {
             <StatusDot status={video.status} />
             <span className={styles.itemStatus}>
               {statusLabels[video.status] || video.status}
+            </span>
+            <span className={styles.itemMetaDivider}>•</span>
+            <span className={styles.itemChatCount}>
+              <MessageSquare size={10} style={{ marginRight: 3, verticalAlign: 'middle' }} />
+              {conversationCount} {conversationCount === 1 ? 'chat' : 'chats'}
             </span>
           </div>
         </div>

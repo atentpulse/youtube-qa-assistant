@@ -1,11 +1,33 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, Film } from 'lucide-react';
 import { useConversations } from '../../context/ConversationContext';
 import Modal from '../common/Modal';
 import Tooltip from '../common/Tooltip';
 import styles from './Sidebar.module.css';
 
-export default function ConversationItem({ conversation, isActive, onSelect, isCollapsed }) {
+function formatRelativeTime(dateString) {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffSecs = Math.floor((now - date) / 1000);
+  if (diffSecs < 60) return 'Just now';
+  const diffMins = Math.floor(diffSecs / 60);
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+export default function ConversationItem({
+  conversation,
+  videoTitle,
+  isActive,
+  onSelect,
+  isCollapsed,
+}) {
   const { renameConversation, deleteConversation } = useConversations();
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
@@ -16,6 +38,9 @@ export default function ConversationItem({ conversation, isActive, onSelect, isC
   const inputRef = useRef(null);
   const menuRef = useRef(null);
   const toggleRef = useRef(null);
+
+  const displayVideoTitle = videoTitle || conversation.video_title || (conversation.video_id ? `Video ${conversation.video_id}` : null);
+  const relativeTime = formatRelativeTime(conversation.updated_at || conversation.created_at);
 
   // Position fixed-position menu next to the ⋮ button so it is never clipped
   const openMenu = () => {
@@ -123,29 +148,44 @@ export default function ConversationItem({ conversation, isActive, onSelect, isC
         tabIndex={0}
         onKeyDown={(e) => !isEditing && e.key === 'Enter' && onSelect()}
         aria-pressed={isActive}
+        data-testid="conversation-item"
       >
         <span className={styles.conversationIcon} aria-hidden="true">
           <MessageSquare size={14} />
         </span>
 
-        {isEditing ? (
-          <input
-            ref={inputRef}
-            type="text"
-            value={editTitle}
-            onChange={(e) => setEditTitle(e.target.value)}
-            onBlur={handleCommitEdit}
-            onKeyDown={handleEditKeyDown}
-            className={styles.renameInput}
-            aria-label="Rename conversation"
-            onClick={(e) => e.stopPropagation()}
-            autoFocus
-          />
-        ) : (
-          <span className={styles.conversationTitle} title={conversation.title}>
-            {conversation.title || 'Conversation'}
-          </span>
-        )}
+        <div className={styles.conversationItemBody}>
+          {isEditing ? (
+            <input
+              ref={inputRef}
+              type="text"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              onBlur={handleCommitEdit}
+              onKeyDown={handleEditKeyDown}
+              className={styles.renameInput}
+              aria-label="Rename conversation"
+              onClick={(e) => e.stopPropagation()}
+              autoFocus
+            />
+          ) : (
+            <span className={styles.conversationTitle} title={conversation.title}>
+              {conversation.title || 'Conversation'}
+            </span>
+          )}
+
+          <div className={styles.conversationSubline}>
+            {displayVideoTitle && (
+              <span className={styles.conversationVideoContext} title={displayVideoTitle}>
+                <Film size={10} className={styles.conversationVideoIcon} aria-hidden="true" />
+                <span className={styles.conversationVideoText}>{displayVideoTitle}</span>
+              </span>
+            )}
+            {relativeTime && (
+              <span className={styles.conversationTimestamp}>{relativeTime}</span>
+            )}
+          </div>
+        </div>
 
         <div className={styles.itemActions} onClick={(e) => e.stopPropagation()}>
           <button
@@ -189,12 +229,11 @@ export default function ConversationItem({ conversation, isActive, onSelect, isC
 
       <Modal
         isOpen={isDeleteModalOpen}
-        onClose={() => !isDeleting && setIsDeleteModalOpen(false)}
+        onClose={() => setIsDeleteModalOpen(false)}
         title="Delete conversation?"
-        confirmLabel="Delete"
+        confirmLabel={isDeleting ? 'Deleting…' : 'Delete'}
         cancelLabel="Cancel"
         isDestructive
-        isLoading={isDeleting}
         onConfirm={handleConfirmDelete}
       >
         <p>

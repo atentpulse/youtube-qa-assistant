@@ -3,7 +3,7 @@ import { listVideos, processVideo as apiProcessVideo, deleteVideo as apiDeleteVi
 import { useAuth } from './AuthContext';
 import { VIDEO_STATUS } from '../utils/constants';
 
-const VideoLibraryContext = createContext(null);
+export const VideoLibraryContext = createContext(null);
 
 export function VideoLibraryProvider({ children }) {
   const { isAuthenticated } = useAuth();

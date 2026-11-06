@@ -67,3 +67,11 @@ class Conversation(Base):
         back_populates="conversation",
         cascade="all, delete-orphan",
     )
+
+    @property
+    def video_title(self) -> str | None:
+        return self.video.title if self.video else None
+
+    @property
+    def message_count(self) -> int:
+        return len(self.messages) if self.messages else 0

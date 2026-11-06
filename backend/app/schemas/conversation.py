@@ -20,6 +20,10 @@ class ConversationResponse(BaseModel):
 
     video_id: str | None = None
 
+    video_title: str | None = None
+
+    message_count: int = 0
+
     created_at: datetime
 
     updated_at: datetime

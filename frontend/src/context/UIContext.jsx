@@ -5,6 +5,8 @@ const SIDEBAR_COLLAPSED_KEY = 'ytgenius_sidebar_collapsed';
 
 export function UIProvider({ children }) {
   const [isComposerOpen, setIsComposerOpen] = useState(false);
+  const [composerMode, setComposerMode] = useState('new_chat'); // 'new_chat' | 'add_video'
+  const [selectionVideoId, setSelectionVideoId] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Desktop sidebar collapsed state (240px expanded vs 64px icon bar)
@@ -22,9 +24,31 @@ export function UIProvider({ children }) {
     }
   });
 
-  const openComposer = useCallback(() => setIsComposerOpen(true), []);
-  const closeComposer = useCallback(() => setIsComposerOpen(false), []);
-  const toggleComposer = useCallback(() => setIsComposerOpen((v) => !v), []);
+  const openComposer = useCallback((mode = 'new_chat') => {
+    setComposerMode(mode);
+    setIsComposerOpen(true);
+    setSelectionVideoId(null);
+  }, []);
+
+  const closeComposer = useCallback(() => {
+    setIsComposerOpen(false);
+  }, []);
+
+  const toggleComposer = useCallback((mode = 'new_chat') => {
+    setIsComposerOpen((v) => {
+      if (!v) setComposerMode(mode);
+      return !v;
+    });
+  }, []);
+
+  const openConversationSelection = useCallback((videoId) => {
+    setSelectionVideoId(videoId);
+    setIsComposerOpen(false);
+  }, []);
+
+  const closeConversationSelection = useCallback(() => {
+    setSelectionVideoId(null);
+  }, []);
 
   const toggleSidebar = useCallback(() => setIsSidebarOpen((v) => !v), []);
   const closeSidebar = useCallback(() => setIsSidebarOpen(false), []);
@@ -76,9 +100,13 @@ export function UIProvider({ children }) {
     <UIContext.Provider
       value={{
         isComposerOpen,
+        composerMode,
         openComposer,
         closeComposer,
         toggleComposer,
+        selectionVideoId,
+        openConversationSelection,
+        closeConversationSelection,
         isSidebarOpen,
         toggleSidebar,
         closeSidebar,
@@ -98,7 +126,7 @@ export function UIProvider({ children }) {
 export function useUI() {
   const ctx = useContext(UIContext);
   if (!ctx) {
-    throw new Error('useUI must be used within UIProvider');
+    throw new Error('useUI must be used within a UIProvider');
   }
   return ctx;
 }

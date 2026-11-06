@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 from sqlalchemy.sql import func
 
 from app.models.conversation import (
@@ -56,6 +56,10 @@ class ConversationService:
 
         query = (
             db.query(Conversation)
+            .options(
+                joinedload(Conversation.video),
+                selectinload(Conversation.messages),
+            )
             .filter(
                 Conversation.user_id == user_id
             )

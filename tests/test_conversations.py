@@ -206,3 +206,96 @@ async def test_update_and_delete_conversation(async_client, auth_headers):
         headers=auth_headers,
     )
     assert get_resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_conversation_user_isolation(async_client, auth_headers, test_user_2):
+    """Verify that a user cannot access or read another user's conversation."""
+    from app.auth.jwt import create_access_token
+
+    # 1. User A creates a conversation
+    resp = await async_client.post(
+        "/conversations",
+        headers=auth_headers,
+        json={"title": "User A Private Conversation", "video_id": "video_user_a"},
+    )
+    assert resp.status_code == 200
+    conv_id = resp.json()["id"]
+
+    # 2. User B (different real user) attempts to access User A's conversation
+    user_b_token = create_access_token(user_id=test_user_2.id)
+    user_b_headers = {"Authorization": f"Bearer {user_b_token}"}
+
+    get_resp = await async_client.get(
+        f"/conversations/{conv_id}",
+        headers=user_b_headers,
+    )
+    assert get_resp.status_code == 404
+
+    # 3. User B attempts to post a message into User A's conversation
+    msg_resp = await async_client.post(
+        f"/conversations/{conv_id}/messages",
+        headers=user_b_headers,
+        json={"content": "Attempted cross-user injection"},
+    )
+    assert msg_resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_multiple_conversations_per_video_preserved(async_client, db, test_user, auth_headers, mock_rag_service):
+    """Verify multiple distinct conversations can exist for the same video without mixing messages."""
+    storage = VideoStorageService(db)
+    storage.create_or_update_video(
+        video_id="shared_course_vid",
+        user_id=test_user.id,
+        status="processed",
+    )
+
+    # 1. Create first conversation for video
+    resp1 = await async_client.post(
+        "/conversations",
+        headers=auth_headers,
+        json={"title": "SQL Basics Thread", "video_id": "shared_course_vid"},
+    )
+    assert resp1.status_code == 200
+    conv1_id = resp1.json()["id"]
+
+    # 2. Create second conversation for same video
+    resp2 = await async_client.post(
+        "/conversations",
+        headers=auth_headers,
+        json={"title": "SQL Advanced Joins Thread", "video_id": "shared_course_vid"},
+    )
+    assert resp2.status_code == 200
+    conv2_id = resp2.json()["id"]
+    assert conv1_id != conv2_id
+
+    # 3. Send message in conv1
+    m1 = await async_client.post(
+        f"/conversations/{conv1_id}/messages",
+        headers=auth_headers,
+        json={"content": "What is SELECT?"},
+    )
+    assert m1.status_code == 200
+
+    # 4. Send message in conv2
+    m2 = await async_client.post(
+        f"/conversations/{conv2_id}/messages",
+        headers=auth_headers,
+        json={"content": "What is INNER JOIN?"},
+    )
+    assert m2.status_code == 200
+
+    # 5. Verify conv1 messages contain only SELECT question
+    c1_data = await async_client.get(f"/conversations/{conv1_id}", headers=auth_headers)
+    assert c1_data.status_code == 200
+    c1_msgs = c1_data.json()["messages"]
+    assert len(c1_msgs) == 2
+    assert c1_msgs[0]["content"] == "What is SELECT?"
+
+    # 6. Verify conv2 messages contain only INNER JOIN question
+    c2_data = await async_client.get(f"/conversations/{conv2_id}", headers=auth_headers)
+    assert c2_data.status_code == 200
+    c2_msgs = c2_data.json()["messages"]
+    assert len(c2_msgs) == 2
+    assert c2_msgs[0]["content"] == "What is INNER JOIN?"
