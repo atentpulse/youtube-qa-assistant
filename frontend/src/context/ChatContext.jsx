@@ -30,13 +30,12 @@ function isNoInformationFound(response) {
 }
 
 /**
- * Converts backend Message records ({ id, role, content, created_at }) into
+ * Converts backend Message records ({ id, role, content, sources, created_at }) into
  * the display shape used by QAThread/MessageBubble.
  *
  * Backend messages are stored as separate user/assistant rows. We pair each
  * user message with the following assistant message into a single display
- * entry. Sources are NOT persisted by the backend, so reloaded conversations
- * show answers without source chips (a backend limitation).
+ * entry. Citations are persisted by the backend, restoring source chips on reload.
  */
 export function convertBackendMessages(messages) {
   const result = [];

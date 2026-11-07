@@ -73,7 +73,7 @@ export function VideoLibraryProvider({ children }) {
 
   const reprocessVideo = useCallback(async (videoId, url) => {
     const videoUrl = url || `https://www.youtube.com/watch?v=${videoId}`;
-    const res = await apiProcessVideo(videoUrl);
+    const res = await apiProcessVideo({ url: videoUrl, forceReprocess: true });
     const updated = res?.video || res;
     if (updated?.video_id) {
       setVideos((prev) =>

@@ -3,6 +3,7 @@ import { Film, MessageSquare } from 'lucide-react';
 import { useVideoLibrary } from '../../context/VideoLibraryContext';
 import { useUI } from '../../context/UIContext';
 import { VIDEO_STATUS } from '../../utils/constants';
+import { sanitizeErrorMessage, formatProcessingStartedAt } from '../../utils/formatters';
 import Modal from '../common/Modal';
 import Tooltip from '../common/Tooltip';
 import styles from './Sidebar.module.css';
@@ -127,7 +128,13 @@ export default function VideoLibraryItem({
   };
 
   if (isCollapsed) {
-    const tooltipText = `${video.title || 'Video'} (${statusLabels[video.status] || video.status} • ${conversationCount} ${conversationCount === 1 ? 'chat' : 'chats'})`;
+    const statusHint =
+      video.status === VIDEO_STATUS.FAILED && video.error_message
+        ? ` - ${sanitizeErrorMessage(video.error_message)}`
+        : video.status === VIDEO_STATUS.PROCESSING && video.processing_started_at
+          ? ` (${formatProcessingStartedAt(video.processing_started_at)})`
+          : '';
+    const tooltipText = `${video.title || 'Video'} (${statusLabels[video.status] || video.status}${statusHint} • ${conversationCount} ${conversationCount === 1 ? 'chat' : 'chats'})`;
     return (
       <li
         className={`${styles.itemCollapsed} ${isSelected ? styles.itemSelected : ''}`}
@@ -183,7 +190,16 @@ export default function VideoLibraryItem({
           </p>
           <div className={styles.itemMeta}>
             <StatusDot status={video.status} />
-            <span className={styles.itemStatus}>
+            <span
+              className={styles.itemStatus}
+              title={
+                video.status === VIDEO_STATUS.FAILED && video.error_message
+                  ? sanitizeErrorMessage(video.error_message)
+                  : video.status === VIDEO_STATUS.PROCESSING && video.processing_started_at
+                    ? formatProcessingStartedAt(video.processing_started_at)
+                    : undefined
+              }
+            >
               {statusLabels[video.status] || video.status}
             </span>
             <span className={styles.itemMetaDivider}>•</span>

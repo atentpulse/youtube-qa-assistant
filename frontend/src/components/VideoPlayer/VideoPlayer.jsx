@@ -1,6 +1,7 @@
 import React, { forwardRef, useImperativeHandle, useRef, useState } from 'react';
 import { AlertTriangle, Check, Copy, ExternalLink, RefreshCw } from 'lucide-react';
 import { VIDEO_STATUS } from '../../utils/constants';
+import { sanitizeErrorMessage, formatProcessingStartedAt } from '../../utils/formatters';
 import Spinner from '../common/Spinner';
 import Skeleton from '../common/Skeleton';
 import styles from './VideoPlayer.module.css';
@@ -108,11 +109,21 @@ const VideoPlayer = forwardRef(function VideoPlayer(
             <p className={styles.placeholderText}>
               Processing this video… ready shortly.
             </p>
+            {video.processing_started_at && (
+              <p className={styles.startedAtText} data-testid="processing-started-at">
+                {formatProcessingStartedAt(video.processing_started_at)}
+              </p>
+            )}
           </div>
         ) : isFailed ? (
           <div className={styles.embedStatePlaceholder}>
             <AlertTriangle size={28} className={styles.errorIcon} />
             <p className={styles.placeholderText}>Video processing failed</p>
+            {video.error_message && (
+              <p className={styles.errorDetailText} data-testid="video-error-message">
+                {sanitizeErrorMessage(video.error_message)}
+              </p>
+            )}
             {reprocessVideo && (
               <button
                 type="button"
@@ -145,6 +156,13 @@ const VideoPlayer = forwardRef(function VideoPlayer(
             className={styles.statusBadge}
             style={{ color: statusColors[video.status] || 'var(--text-500)' }}
             data-testid="video-header-status"
+            title={
+              isFailed && video.error_message
+                ? sanitizeErrorMessage(video.error_message)
+                : isProcessing && video.processing_started_at
+                  ? formatProcessingStartedAt(video.processing_started_at)
+                  : undefined
+            }
           >
             <span
               className={styles.statusDot}
