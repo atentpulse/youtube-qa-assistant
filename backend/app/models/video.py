@@ -58,6 +58,16 @@ class Video(Base):
         server_default="0",
     )
 
+    error_message = Column(
+        String(1000),
+        nullable=True,
+    )
+
+    processing_started_at = Column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
     created_at = Column(
         DateTime(timezone=True),
         server_default=func.now(),

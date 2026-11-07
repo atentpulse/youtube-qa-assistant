@@ -7,6 +7,7 @@ from app.models.question_cache import QuestionCache
 from app.models.password_reset_token import PasswordResetToken
 from app.models.email_verification_token import EmailVerificationToken
 from app.models.bug_report import BugReport
+from app.models.oauth_code import OAuthExchangeCode
 
 __all__ = [
     "User",
@@ -18,4 +19,5 @@ __all__ = [
     "PasswordResetToken",
     "EmailVerificationToken",
     "BugReport",
+    "OAuthExchangeCode",
 ]

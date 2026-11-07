@@ -1,0 +1,23 @@
+from datetime import datetime
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String
+from sqlalchemy.sql import func
+from app.database.database import Base
+
+
+class OAuthExchangeCode(Base):
+    __tablename__ = "oauth_exchange_codes"
+
+    code_hash = Column(String(64), primary_key=True, index=True)
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    used = Column(Boolean, default=False, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
