@@ -72,7 +72,7 @@ class User(Base):
     videos = relationship(
         "Video",
         back_populates="user",
-        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
     user_videos = relationship(

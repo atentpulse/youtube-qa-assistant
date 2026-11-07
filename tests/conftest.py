@@ -18,7 +18,7 @@ import pytest
 import pytest_asyncio
 import httpx
 from starlette.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -70,6 +70,16 @@ def mock_external_network(monkeypatch):
     # Ensure RAG background tasks use the test SQLite DB instead of PostgreSQL
     import app.services.rag_service as rag_service_mod
     monkeypatch.setattr(rag_service_mod, "SessionLocal", TestingSessionLocal)
+
+    # Configure dummy delete_video on app.state.rag_service
+    def dummy_delete_video(db, user_id, video_id):
+        storage = VideoStorageService(db)
+        return storage.delete_video(video_id=video_id, user_id=user_id)
+
+    if not hasattr(app.state, "rag_service") or app.state.rag_service is None:
+        from unittest.mock import MagicMock
+        app.state.rag_service = MagicMock()
+    app.state.rag_service.delete_video.side_effect = dummy_delete_video
 
 
 @pytest.fixture
@@ -125,8 +135,13 @@ def mock_rag_service():
         total = storage.get_video_count(user_id=user_id, status=status)
         return {"videos": videos, "total": total}
 
+    def dummy_delete_video(db, user_id, video_id):
+        storage = VideoStorageService(db)
+        return storage.delete_video(video_id=video_id, user_id=user_id)
+
     mock.ask_question.side_effect = dummy_ask
     mock.get_all_videos.side_effect = dummy_get_all_videos
+    mock.delete_video.side_effect = dummy_delete_video
     return mock
 
 

@@ -6,6 +6,12 @@ from sqlalchemy import pool
 from alembic import context
 from dotenv import load_dotenv
 import os
+import sys
+from pathlib import Path
+
+backend_dir = Path(__file__).resolve().parents[1]
+if str(backend_dir) not in sys.path:
+    sys.path.insert(0, str(backend_dir))
 
 from app.database.database import Base
 
@@ -13,10 +19,12 @@ from app.database.database import Base
 from app.models.user import User
 from app.models.conversation import Conversation
 from app.models.video import Video
+from app.models.user_video import UserVideo
 from app.models.question_cache import QuestionCache
 from app.models.message import Message
 from app.models.password_reset_token import PasswordResetToken
 from app.models.email_verification_token import EmailVerificationToken
+from app.models.bug_report import BugReport
 
 
 load_dotenv()
