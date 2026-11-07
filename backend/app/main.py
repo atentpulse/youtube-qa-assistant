@@ -2,12 +2,16 @@ import os
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_user
 from app.core import settings
-from app.database.database import engine
+from app.database.database import engine, get_db
+from app.services.qdrant_service import QdrantVectorStore
 from app.models import (
     User,
     Conversation,
@@ -149,11 +153,48 @@ def root():
 
 
 # --------------------------------
-# Health check
+# Health checks
 # --------------------------------
 
-@app.get("/health")
+@app.get("/health", tags=["Health"])
 def health_check():
     return {
         "status": "healthy"
     }
+
+
+@app.get("/health/live", tags=["Health"])
+def health_live():
+    return {
+        "status": "ok"
+    }
+
+
+@app.get("/health/ready", tags=["Health"])
+def health_ready(db: Session = Depends(get_db)):
+    checks = {}
+
+    try:
+        db.execute(text("SELECT 1"))
+        checks["database"] = "ok"
+    except Exception as exc:
+        checks["database"] = f"unhealthy: {exc}"
+
+    try:
+        qdrant_store = QdrantVectorStore()
+        if qdrant_store.is_healthy():
+            checks["qdrant"] = "ok"
+        else:
+            checks["qdrant"] = "unhealthy: ping failed"
+    except Exception as exc:
+        checks["qdrant"] = f"unhealthy: {exc}"
+
+    all_ok = all(v == "ok" for v in checks.values())
+    status_code = 200 if all_ok else 503
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "status": "ready" if all_ok else "unhealthy",
+            "checks": checks,
+        },
+    )
