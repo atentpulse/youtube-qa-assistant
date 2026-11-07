@@ -261,6 +261,7 @@ def ask_question(
             conversation_id=conversation.id,
             role="assistant",
             content=result["answer"],
+            citations=result.get("sources", []),
         )
 
 

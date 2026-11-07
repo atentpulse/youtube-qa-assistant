@@ -328,6 +328,19 @@ async def test_ask_endpoint_citations_and_no_followup_suggestions(
     assert "suggestions" not in data
     assert "follow_up_questions" not in data
 
+    # Verify citations were persisted to the database and returned on reload
+    conv_id = data["conversation_id"]
+    msg_resp = await async_client.get(
+        f"/conversations/{conv_id}/messages",
+        headers=auth_headers,
+    )
+    assert msg_resp.status_code == 200
+    messages = msg_resp.json()["messages"]
+    assistant_msgs = [m for m in messages if m["role"] == "assistant"]
+    assert len(assistant_msgs) > 0
+    assert len(assistant_msgs[0]["sources"]) > 0
+    assert assistant_msgs[0]["sources"][0]["start_time"] == src["start_time"]
+
 
 @pytest.mark.asyncio
 async def test_error_handling_consistency_and_no_leakage(async_client):
