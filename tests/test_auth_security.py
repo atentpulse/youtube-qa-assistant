@@ -1,10 +1,12 @@
 import hashlib
 from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock, MagicMock
 import pytest
 from app.auth.jwt import create_access_token
 from app.models.oauth_code import OAuthExchangeCode
 from app.models.bug_report import BugReport
 from app.models.user import User
+from backend.scripts.bootstrap_admin import create_admin, promote_user
 
 
 @pytest.mark.asyncio
@@ -93,6 +95,73 @@ async def test_oauth_single_use_code_exchange(async_client, db, test_user):
 
 
 @pytest.mark.asyncio
+async def test_oauth_code_expired_rejected(async_client, db, test_user):
+    """Verify that expired authorization codes (>60s) cannot be exchanged."""
+    raw_code = "expired_test_code_999"
+    code_hash = hashlib.sha256(raw_code.encode("utf-8")).hexdigest()
+    expired_at = datetime.now(timezone.utc) - timedelta(seconds=10)
+
+    oauth_record = OAuthExchangeCode(
+        code_hash=code_hash,
+        user_id=test_user.id,
+        expires_at=expired_at,
+        used=False,
+    )
+    db.add(oauth_record)
+    db.commit()
+
+    res = await async_client.post(
+        "/auth/oauth/exchange",
+        json={"code": raw_code},
+    )
+    assert res.status_code == 400
+    assert "expired" in res.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_oauth_code_invalid_rejected(async_client):
+    """Verify that non-existent or tampered codes return 400."""
+    res = await async_client.post(
+        "/auth/oauth/exchange",
+        json={"code": "completely_fake_and_nonexistent_code"},
+    )
+    assert res.status_code == 400
+    assert "invalid" in res.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_oauth_redirect_never_contains_tokens(async_client, monkeypatch):
+    """Verify that Google OAuth redirect URL contains ONLY code and NEVER tokens."""
+    from app.routers import auth as auth_router
+
+    fake_user_info = {
+        "sub": "google_test_sub_no_leak_456",
+        "email": "no_leak_user@example.com",
+        "name": "No Leak User",
+        "email_verified": True,
+    }
+
+    mock_oauth = MagicMock()
+    mock_google = MagicMock()
+    mock_google.authorize_access_token = AsyncMock(
+        return_value={"access_token": "google_raw_access", "userinfo": fake_user_info}
+    )
+    mock_oauth.google = mock_google
+    monkeypatch.setattr(auth_router, "oauth", mock_oauth)
+
+    response = await async_client.get(
+        "/auth/google/callback?code=mock_code&state=mock_state",
+        follow_redirects=False,
+    )
+    assert response.status_code == 307
+    location = response.headers.get("location", "")
+    assert "/oauth/callback" in location
+    assert "code=" in location
+    assert "token=" not in location
+    assert "refresh_token=" not in location
+
+
+@pytest.mark.asyncio
 async def test_admin_role_authorization_for_bug_reports(async_client, db, test_user):
     """Verify that admin bug report triage requires explicit role='admin'."""
     # Seed a bug report
@@ -128,3 +197,35 @@ async def test_admin_role_authorization_for_bug_reports(async_client, db, test_u
     reports = admin_resp.json()
     assert len(reports) >= 1
     assert reports[0]["title"] == "Sample Bug"
+
+
+def test_admin_bootstrap_functions(db, test_user):
+    """Verify safe CLI operational admin bootstrap functions."""
+    # Test promote existing user
+    assert test_user.role != "admin"
+    promoted = promote_user(email=test_user.email, db=db)
+    assert promoted is True
+    db.refresh(test_user)
+    assert test_user.role == "admin"
+
+    # Test create new admin
+    created = create_admin(
+        email="new_cli_admin@example.com",
+        username="SuperAdmin",
+        password="SuperAdminSecurePassword123!",
+        db=db,
+    )
+    assert created is True
+    new_admin = db.query(User).filter(User.email == "new_cli_admin@example.com").first()
+    assert new_admin is not None
+    assert new_admin.role == "admin"
+    assert new_admin.email_verified is True
+
+    # Duplicate creation rejected
+    dup_created = create_admin(
+        email="new_cli_admin@example.com",
+        username="SuperAdmin",
+        password="SuperAdminSecurePassword123!",
+        db=db,
+    )
+    assert dup_created is False

@@ -170,3 +170,84 @@ def test_cache_preference_isolation(db):
     )
     assert ans_detailed is not None
     assert ans_detailed["answer"] == "Comprehensive explanation with extensive background."
+
+
+# -------------------------------------------------------------------
+# 5. Dedicated Full E2E Citation Lifecycle & Backward Compatibility
+# -------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_citation_lifecycle_full_e2e_and_backward_compatibility(async_client, auth_headers, db, test_user):
+    """
+    Verifies complete citation lifecycle:
+    1. Send message in conversation
+    2. Persist assistant response with citations
+    3. Retrieve conversation detail (citations present)
+    4. Retrieve paginated messages (citations present)
+    5. Backward compatibility for legacy messages without citations (citations=None)
+    """
+    # Create conversation bound to video
+    conv = Conversation(user_id=test_user.id, title="Lifecycle Conversation", video_id="lifecycle_vid_999")
+    db.add(conv)
+    db.commit()
+    db.refresh(conv)
+
+    service = ConversationService()
+
+    # Step 1 & 2: User question and assistant response with citations
+    citations_data = [
+        {"text": "Quote at 10s", "start": 10.0, "duration": 4.5, "url": "https://youtu.be/lifecycle_vid_999?t=10"},
+        {"text": "Quote at 45s", "start": 45.0, "duration": 5.0, "url": "https://youtu.be/lifecycle_vid_999?t=45"},
+    ]
+    user_msg = service.add_message(
+        db=db,
+        conversation_id=conv.id,
+        role="user",
+        content="Explain the lifecycle.",
+    )
+    asst_msg = service.add_message(
+        db=db,
+        conversation_id=conv.id,
+        role="assistant",
+        content="Here is the explanation with citations.",
+        citations=citations_data,
+    )
+
+    # Step 5: Legacy message without citations
+    legacy_msg = Message(
+        conversation_id=conv.id,
+        role="assistant",
+        content="Legacy answer without citations from older version.",
+        citations=None,
+    )
+    db.add(legacy_msg)
+    db.commit()
+
+    # Step 3: Retrieve conversation detail
+    detail_res = await async_client.get(f"/conversations/{conv.id}", headers=auth_headers)
+    assert detail_res.status_code == 200
+    detail_data = detail_res.json()
+    assert len(detail_data["messages"]) == 3
+
+    # Verify modern assistant message has citations
+    modern_in_detail = [m for m in detail_data["messages"] if m["id"] == asst_msg.id][0]
+    assert len(modern_in_detail["sources"]) == 2
+    assert modern_in_detail["sources"][0]["text"] == "Quote at 10s"
+    assert modern_in_detail["sources"][1]["start"] == 45.0
+
+    # Verify legacy message has empty sources without error
+    legacy_in_detail = [m for m in detail_data["messages"] if m["id"] == legacy_msg.id][0]
+    assert legacy_in_detail["sources"] == []
+
+    # Step 4: Retrieve paginated messages
+    page_res = await async_client.get(f"/conversations/{conv.id}/messages?limit=10", headers=auth_headers)
+    assert page_res.status_code == 200
+    page_data = page_res.json()
+    assert len(page_data["messages"]) == 3
+
+    modern_in_page = [m for m in page_data["messages"] if m["id"] == asst_msg.id][0]
+    assert len(modern_in_page["sources"]) == 2
+    assert modern_in_page["sources"][0]["text"] == "Quote at 10s"
+
+    legacy_in_page = [m for m in page_data["messages"] if m["id"] == legacy_msg.id][0]
+    assert legacy_in_page["sources"] == []

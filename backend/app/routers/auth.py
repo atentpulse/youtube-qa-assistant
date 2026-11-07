@@ -574,31 +574,30 @@ async def google_callback(
         db.add(oauth_code_entry)
         db.commit()
 
-        # 2. Issue RedirectResponse providing code (secure) and fallback params for current frontend
+        # 2. Issue RedirectResponse providing ONLY the single-use authorization code
+        # Access and refresh tokens are NEVER exposed in redirect URLs, query params, or browser history
         response = RedirectResponse(
-            url=(
-                f"{FRONTEND_URL}/oauth/callback"
-                f"?code={urllib.parse.quote(raw_code)}"
-                f"&token={urllib.parse.quote(access_token)}"
-                f"&refresh_token={urllib.parse.quote(refresh_token)}"
-            )
+            url=f"{FRONTEND_URL}/oauth/callback?code={urllib.parse.quote(raw_code)}"
         )
 
-        is_prod = (os.getenv("ENV") or os.getenv("ENVIRONMENT") or "").lower() == "production"
+        is_prod = (settings.ENVIRONMENT or "").strip().lower() in ("production", "prod")
+        secure_cookie = is_prod or (request.url.scheme == "https")
         response.set_cookie(
             key="ytgenius_access_token",
             value=access_token,
             httponly=True,
-            secure=is_prod,
+            secure=secure_cookie,
             samesite="lax",
+            path="/",
             max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         )
         response.set_cookie(
             key="ytgenius_refresh_token",
             value=refresh_token,
             httponly=True,
-            secure=is_prod,
+            secure=secure_cookie,
             samesite="lax",
+            path="/",
             max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
         )
         return response
@@ -717,6 +716,18 @@ def exchange_oauth_code(
     db: Session = Depends(get_db),
 ):
     code_hash = hashlib.sha256(request.code.strip().encode("utf-8")).hexdigest()
+
+    # Atomic test-and-set to guarantee single-use consumption under concurrent requests
+    rows_updated = (
+        db.query(OAuthExchangeCode)
+        .filter(
+            OAuthExchangeCode.code_hash == code_hash,
+            OAuthExchangeCode.used == False,
+        )
+        .update({"used": True}, synchronize_session=False)
+    )
+    db.commit()
+
     record = (
         db.query(OAuthExchangeCode)
         .filter(OAuthExchangeCode.code_hash == code_hash)
@@ -729,7 +740,7 @@ def exchange_oauth_code(
             detail="Invalid authorization code.",
         )
 
-    if record.used:
+    if rows_updated == 0:
         raise HTTPException(
             status_code=400,
             detail="Authorization code has already been used.",
@@ -745,10 +756,6 @@ def exchange_oauth_code(
             status_code=400,
             detail="Authorization code has expired.",
         )
-
-    # Mark as used atomically
-    record.used = True
-    db.commit()
 
     user = db.query(User).filter(User.id == record.user_id).first()
     if not user:
