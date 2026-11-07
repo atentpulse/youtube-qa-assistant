@@ -1,6 +1,9 @@
+import hashlib
 import logging
 import os
+import secrets
 import urllib.parse
+from datetime import datetime, timedelta, timezone
 from fastapi_mail.errors import ConnectionErrors
 
 logger = logging.getLogger(__name__)
@@ -10,6 +13,7 @@ from fastapi import (
     Depends,
     HTTPException,
     Request,
+    status,
 )
 
 from fastapi.responses import RedirectResponse
@@ -21,6 +25,7 @@ from sqlalchemy.orm import Session
 from app.database.database import get_db
 
 from app.models.user import User
+from app.models.oauth_code import OAuthExchangeCode
 
 from app.schemas.auth import (
     RegisterRequest,
@@ -31,6 +36,7 @@ from app.schemas.auth import (
     RefreshTokenRequest,
     ForgotPasswordRequest,
     ResetPasswordRequest,
+    OAuthExchangeRequest,
 )
 from fastapi.security import HTTPAuthorizationCredentials
 
@@ -314,7 +320,11 @@ def login_user(
         )
 
         user = db.query(User).filter(User.email == email).first()
-        refresh_token = create_refresh_token(user.id) if user else None
+        refresh_token = (
+            create_refresh_token(user.id, token_version=user.token_version or 1)
+            if user
+            else None
+        )
 
         return {
             "access_token": access_token,
@@ -414,8 +424,17 @@ def refresh_token(
             detail="User associated with token no longer exists.",
         )
 
-    new_access = create_access_token(user.id)
-    new_refresh = create_refresh_token(user.id)
+    # Check token revocation
+    token_tv = payload.get("tv")
+    if token_tv is not None and user.token_version is not None:
+        if int(token_tv) != int(user.token_version):
+            raise HTTPException(
+                status_code=401,
+                detail="Token has been revoked. Please sign in again.",
+            )
+
+    new_access = create_access_token(user.id, token_version=user.token_version or 1)
+    new_refresh = create_refresh_token(user.id, token_version=user.token_version or 1)
 
     return {
         "access_token": new_access,
@@ -538,15 +557,51 @@ async def google_callback(
 
         payload = decode_token(access_token)
         user_id = int(payload["sub"])
-        refresh_token = create_refresh_token(user_id=user_id)
+        user = db.query(User).filter(User.id == user_id).first()
+        tv = (user.token_version or 1) if user else 1
+        refresh_token = create_refresh_token(user_id=user_id, token_version=tv)
 
-        return RedirectResponse(
+        # 1. Generate short-lived, single-use authorization code for secure OAuth exchange
+        raw_code = secrets.token_urlsafe(32)
+        code_hash = hashlib.sha256(raw_code.encode("utf-8")).hexdigest()
+        expires_at = datetime.now(timezone.utc) + timedelta(seconds=60)
+        oauth_code_entry = OAuthExchangeCode(
+            code_hash=code_hash,
+            user_id=user_id,
+            expires_at=expires_at,
+            used=False,
+        )
+        db.add(oauth_code_entry)
+        db.commit()
+
+        # 2. Issue RedirectResponse providing code (secure) and fallback params for current frontend
+        response = RedirectResponse(
             url=(
                 f"{FRONTEND_URL}/oauth/callback"
-                f"?token={urllib.parse.quote(access_token)}"
+                f"?code={urllib.parse.quote(raw_code)}"
+                f"&token={urllib.parse.quote(access_token)}"
                 f"&refresh_token={urllib.parse.quote(refresh_token)}"
             )
         )
+
+        is_prod = (os.getenv("ENV") or os.getenv("ENVIRONMENT") or "").lower() == "production"
+        response.set_cookie(
+            key="ytgenius_access_token",
+            value=access_token,
+            httponly=True,
+            secure=is_prod,
+            samesite="lax",
+            max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        )
+        response.set_cookie(
+            key="ytgenius_refresh_token",
+            value=refresh_token,
+            httponly=True,
+            secure=is_prod,
+            samesite="lax",
+            max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+        )
+        return response
 
     except ValueError as error:
 
@@ -645,6 +700,95 @@ def delete_current_user_account(
     db.commit()
 
     return {"message": "Account deleted successfully."}
+
+
+# --------------------------------
+# Exchange OAuth code
+# --------------------------------
+
+
+@router.post(
+    "/oauth/exchange",
+    response_model=TokenResponse,
+    summary="Exchange short-lived, single-use OAuth code for access and refresh tokens",
+)
+def exchange_oauth_code(
+    request: OAuthExchangeRequest,
+    db: Session = Depends(get_db),
+):
+    code_hash = hashlib.sha256(request.code.strip().encode("utf-8")).hexdigest()
+    record = (
+        db.query(OAuthExchangeCode)
+        .filter(OAuthExchangeCode.code_hash == code_hash)
+        .first()
+    )
+
+    if not record:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid authorization code.",
+        )
+
+    if record.used:
+        raise HTTPException(
+            status_code=400,
+            detail="Authorization code has already been used.",
+        )
+
+    now = datetime.now(timezone.utc)
+    exp = record.expires_at
+    if exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+
+    if exp <= now:
+        raise HTTPException(
+            status_code=400,
+            detail="Authorization code has expired.",
+        )
+
+    # Mark as used atomically
+    record.used = True
+    db.commit()
+
+    user = db.query(User).filter(User.id == record.user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found.",
+        )
+
+    access_token = create_access_token(
+        user_id=user.id,
+        token_version=user.token_version or 1,
+    )
+    refresh_token = create_refresh_token(
+        user_id=user.id,
+        token_version=user.token_version or 1,
+    )
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+    }
+
+
+# --------------------------------
+# Logout
+# --------------------------------
+
+
+@router.post(
+    "/logout",
+    summary="Invalidate all active sessions for the current user",
+)
+def logout(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    current_user.token_version = (current_user.token_version or 1) + 1
+    db.commit()
+    return {"message": "Successfully logged out. All sessions invalidated."}
 
 
 # --------------------------------

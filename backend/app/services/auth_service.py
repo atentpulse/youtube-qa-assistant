@@ -95,6 +95,7 @@ class AuthService:
 
         access_token = create_access_token(
             user_id=user.id,
+            token_version=user.token_version or 1,
         )
 
         return access_token
@@ -118,7 +119,10 @@ class AuthService:
                 user.email = clean_email
             user.email_verified = True
             db.commit()
-            return create_access_token(user_id=user.id)
+            return create_access_token(
+                user_id=user.id,
+                token_version=user.token_version or 1,
+            )
 
         # 2. Match by verified email (case-insensitive)
         existing_user = (
@@ -133,11 +137,17 @@ class AuthService:
                 existing_user.google_id = gid
                 existing_user.email_verified = True
                 db.commit()
-                return create_access_token(user_id=existing_user.id)
+                return create_access_token(
+                    user_id=existing_user.id,
+                    token_version=existing_user.token_version or 1,
+                )
             elif existing_user.google_id == gid:
                 existing_user.email_verified = True
                 db.commit()
-                return create_access_token(user_id=existing_user.id)
+                return create_access_token(
+                    user_id=existing_user.id,
+                    token_version=existing_user.token_version or 1,
+                )
             else:
                 raise ValueError(
                     "This email is already associated with another Google account."
@@ -157,7 +167,10 @@ class AuthService:
         db.commit()
         db.refresh(new_user)
 
-        return create_access_token(user_id=new_user.id)
+        return create_access_token(
+            user_id=new_user.id,
+            token_version=new_user.token_version or 1,
+        )
 
     def create_password_reset_token(
         self,
@@ -227,6 +240,7 @@ class AuthService:
             raise ValueError("Invalid or expired password reset token.")
 
         user.password_hash = hash_password(new_password)
+        user.token_version = (user.token_version or 1) + 1
 
         reset_token.used_at = now
 

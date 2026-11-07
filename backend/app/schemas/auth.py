@@ -38,6 +38,8 @@ class UserResponse(BaseModel):
 
     auth_provider: str = "local"
 
+    role: str = "user"
+
     created_at: datetime | None = None
 
 
@@ -78,4 +80,11 @@ class ResetPasswordRequest(BaseModel):
     new_password: str = Field(
         min_length=6,
         max_length=100,
+    )
+
+
+class OAuthExchangeRequest(BaseModel):
+    code: str = Field(
+        min_length=1,
+        max_length=200,
     )

@@ -1,11 +1,12 @@
 from fastapi import (
     APIRouter,
     Depends,
+    Query,
     status,
 )
 from sqlalchemy.orm import Session
 
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import get_current_user, require_admin
 from app.database.database import get_db
 from app.models.bug_report import BugReport
 from app.models.user import User
@@ -43,3 +44,28 @@ def create_bug_report(
     db.commit()
     db.refresh(bug_report)
     return bug_report
+
+
+@router.get(
+    "/admin/bug-reports",
+    response_model=list[BugReportResponse],
+    summary="List all submitted bug reports (admin only)",
+)
+def list_admin_bug_reports(
+    admin_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+) -> list[BugReport]:
+    """
+    Lists all submitted bug reports ordered by creation time.
+    Protected strictly by role-based administrator verification.
+    """
+    reports = (
+        db.query(BugReport)
+        .order_by(BugReport.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+    return reports

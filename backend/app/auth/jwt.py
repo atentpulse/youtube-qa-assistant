@@ -14,6 +14,7 @@ REFRESH_TOKEN_EXPIRE_DAYS = settings.REFRESH_TOKEN_EXPIRE_DAYS
 def create_access_token(
     user_id: int,
     expires_delta: timedelta | None = None,
+    token_version: int = 1,
 ) -> str:
     if expires_delta is not None:
         expire = datetime.now(timezone.utc) + expires_delta
@@ -26,6 +27,7 @@ def create_access_token(
         "sub": str(user_id),
         "exp": expire,
         "type": "access",
+        "tv": int(token_version or 1),
     }
 
     return jwt.encode(
@@ -38,6 +40,7 @@ def create_access_token(
 def create_refresh_token(
     user_id: int,
     expires_delta: timedelta | None = None,
+    token_version: int = 1,
 ) -> str:
     if expires_delta is not None:
         expire = datetime.now(timezone.utc) + expires_delta
@@ -50,6 +53,7 @@ def create_refresh_token(
         "sub": str(user_id),
         "exp": expire,
         "type": "refresh",
+        "tv": int(token_version or 1),
     }
 
     return jwt.encode(
