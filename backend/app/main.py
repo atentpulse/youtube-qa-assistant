@@ -37,6 +37,24 @@ async def lifespan(app: FastAPI):
         app.state.rag_service = MagicMock()
     else:
         app.state.rag_service = RAGService()
+        try:
+            from app.database.database import SessionLocal
+            from app.services.video_storage_service import VideoStorageService
+            import logging
+            with SessionLocal() as db:
+                recovered = VideoStorageService(db).recover_stale_jobs(max_age_minutes=15)
+                if recovered:
+                    logging.getLogger(__name__).info(
+                        "Recovered %d stale video jobs on startup: %s",
+                        len(recovered),
+                        recovered,
+                    )
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning(
+                "Startup stale job recovery failed: %s",
+                exc,
+            )
     yield
 
 

@@ -70,6 +70,7 @@ class VideoStorageService:
         chunks: int = 0,
         title: str | None = None,
         thumbnail_url: str | None = None,
+        error_message: str | None = None,
     ):
         video = (
             self.db.query(Video)
@@ -78,6 +79,8 @@ class VideoStorageService:
             )
             .first()
         )
+
+        now = datetime.now(timezone.utc)
 
         if video is None:
             video = Video(
@@ -88,6 +91,8 @@ class VideoStorageService:
                 status=status,
                 segments=segments,
                 chunks=chunks,
+                processing_started_at=now if status == "processing" else None,
+                error_message=str(error_message)[:1000] if (status == "failed" and error_message) else None,
             )
             self.db.add(video)
         else:
@@ -102,7 +107,17 @@ class VideoStorageService:
                 video.segments = segments
             if chunks:
                 video.chunks = chunks
-            video.updated_at = datetime.now(timezone.utc)
+
+            if status == "processing":
+                video.processing_started_at = now
+                video.error_message = None
+            elif status == "failed":
+                if error_message is not None:
+                    video.error_message = str(error_message)[:1000]
+            elif status == "processed":
+                video.error_message = None
+
+            video.updated_at = now
 
         if user_id is not None:
             user_link = (
@@ -339,6 +354,44 @@ class VideoStorageService:
 
         return query.scalar() or 0
 
+    def recover_stale_jobs(
+        self,
+        max_age_minutes: int = 15,
+    ) -> list[str]:
+        """
+        Identifies videos stuck in 'processing' status where no active advisory lock
+        is held and processing started or updated more than max_age_minutes ago,
+        transitioning them to 'failed' with a diagnostic error message.
+        """
+        from datetime import timedelta
+        from app.services.lock_service import VideoIngestionLock
+
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=max_age_minutes)
+        candidates = (
+            self.db.query(Video)
+            .filter(
+                Video.status == "processing",
+                func.coalesce(Video.processing_started_at, Video.updated_at) < cutoff,
+            )
+            .all()
+        )
+
+        recovered_ids: list[str] = []
+        for video in candidates:
+            if not VideoIngestionLock.is_locked(self.db, video.video_id):
+                video.status = "failed"
+                video.error_message = (
+                    f"Processing timed out after {max_age_minutes} minutes "
+                    "or worker process terminated."
+                )
+                video.updated_at = datetime.now(timezone.utc)
+                recovered_ids.append(video.video_id)
+
+        if recovered_ids:
+            self.db.commit()
+
+        return recovered_ids
+
     @staticmethod
     def _to_dict(
         video: Video,
@@ -350,6 +403,8 @@ class VideoStorageService:
             "status": video.status,
             "segments": video.segments,
             "chunks": video.chunks,
+            "error_message": getattr(video, "error_message", None),
+            "processing_started_at": getattr(video, "processing_started_at", None),
             "created_at": video.created_at,
             "updated_at": video.updated_at,
         }

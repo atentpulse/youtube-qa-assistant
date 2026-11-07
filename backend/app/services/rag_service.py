@@ -85,6 +85,10 @@ class RAGService:
         video_id = extract_video_id(url)
 
         video_storage = VideoStorageService(db)
+        try:
+            video_storage.recover_stale_jobs(max_age_minutes=15)
+        except Exception as stale_err:
+            logger.warning("Failed to recover stale jobs: %s", stale_err)
 
         # --------------------------------
         # 2. Check in-flight processing lock
@@ -306,6 +310,7 @@ class RAGService:
                     video_id=video_id,
                     user_id=user_id,
                     status="failed",
+                    error_message=str(error)[:1000],
                 )
             except Exception as db_err:
                 logger.error(

@@ -40,6 +40,10 @@ class VideoStatusResponse(BaseModel):
 
     chunks: int
 
+    error_message: str | None = None
+
+    processing_started_at: datetime | None = None
+
 
 class VideoListItem(BaseModel):
 
@@ -54,6 +58,10 @@ class VideoListItem(BaseModel):
     segments: int
 
     chunks: int
+
+    error_message: str | None = None
+
+    processing_started_at: datetime | None = None
 
     created_at: datetime | None = None
     updated_at: datetime | None = None

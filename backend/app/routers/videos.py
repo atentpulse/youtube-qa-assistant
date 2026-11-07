@@ -159,6 +159,8 @@ def get_video_status(
         "status": video["status"],
         "segments": video["segments"],
         "chunks": video["chunks"],
+        "error_message": video.get("error_message"),
+        "processing_started_at": video.get("processing_started_at"),
     }
 
 

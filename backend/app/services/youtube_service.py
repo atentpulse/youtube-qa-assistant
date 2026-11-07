@@ -4,7 +4,6 @@ from urllib.parse import (
 )
 
 import time
-
 import requests
 
 from youtube_transcript_api import (
@@ -117,47 +116,80 @@ def fetch_video_metadata(
 
 def fetch_transcript(
     video_id: str,
+    languages: tuple[str, ...] | list[str] = ("en", "en-US", "en-GB"),
     retries: int = 3,
 ):
-
+    """
+    Fetches transcripts with robust multi-stage fallback:
+    1. Manually created transcripts in preferred languages
+    2. Automatically generated transcripts in preferred languages
+    3. Any transcript in preferred languages
+    4. Auto-translated to English or any available transcript track
+    5. Fallback to direct fetch
+    """
     last_error = None
+    api = YouTubeTranscriptApi()
 
     for attempt in range(retries):
-
         try:
+            if hasattr(api, "list"):
+                try:
+                    transcript_list = api.list(video_id)
+                except Exception as list_exc:
+                    if isinstance(list_exc, (TranscriptsDisabled, NoTranscriptFound)):
+                        raise list_exc
+                    return api.fetch(video_id, languages=languages)
 
-            transcript = (
-                YouTubeTranscriptApi()
-                .fetch(video_id)
-            )
+                # 1. Try manual transcript in preferred languages
+                try:
+                    return transcript_list.find_manually_created_transcript(languages).fetch()
+                except (NoTranscriptFound, AttributeError):
+                    pass
 
-            return transcript
+                # 2. Try generated transcript in preferred languages
+                try:
+                    return transcript_list.find_generated_transcript(languages).fetch()
+                except (NoTranscriptFound, AttributeError):
+                    pass
+
+                # 3. Try any transcript in preferred languages
+                try:
+                    return transcript_list.find_transcript(languages).fetch()
+                except (NoTranscriptFound, AttributeError):
+                    pass
+
+                # 4. Fallback: try any available transcript track (translate to en if possible)
+                available = list(transcript_list)
+                if available:
+                    for tr in available:
+                        if getattr(tr, "is_translatable", False):
+                            tl_list = getattr(tr, "translation_languages", [])
+                            if any(isinstance(tl, dict) and tl.get("language_code") == "en" for tl in tl_list):
+                                try:
+                                    return tr.translate("en").fetch()
+                                except Exception:
+                                    pass
+                    return available[0].fetch()
+
+                raise NoTranscriptFound(video_id, list(languages), transcript_list)
+            else:
+                return api.fetch(video_id, languages=languages)
 
         except TranscriptsDisabled:
-
             raise TranscriptFetchError(
                 "Transcript is disabled for this video."
             )
-
         except NoTranscriptFound:
-
             raise TranscriptFetchError(
                 "No transcript was found for this video."
             )
-
         except Exception as error:
-
             last_error = error
-
             print(
-                f"Transcript attempt "
-                f"{attempt + 1}/{retries} failed: "
-                f"{error}"
+                f"Transcript attempt {attempt + 1}/{retries} failed: {error}"
             )
-
             if attempt < retries - 1:
-
-                time.sleep(3)
+                time.sleep(2 * (attempt + 1))
 
     raise TranscriptFetchError(
         f"Could not fetch transcript: {last_error}"
@@ -167,20 +199,27 @@ def fetch_transcript(
 def format_transcript(
     transcript,
 ):
-
     segments = []
 
     for item in transcript:
+        if isinstance(item, dict):
+            text_val = item.get("text", "")
+            start_val = item.get("start", 0.0)
+            duration_val = item.get("duration", 0.0)
+        else:
+            text_val = getattr(item, "text", "")
+            start_val = getattr(item, "start", 0.0)
+            duration_val = getattr(item, "duration", 0.0)
 
         segments.append(
             {
                 "text": (
-                    item.text
+                    str(text_val)
                     .replace("\n", " ")
                     .strip()
                 ),
-                "start": item.start,
-                "duration": item.duration,
+                "start": start_val or 0.0,
+                "duration": duration_val or 0.0,
             }
         )
 
