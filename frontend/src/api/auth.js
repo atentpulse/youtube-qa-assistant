@@ -5,6 +5,22 @@ export function getGoogleLoginUrl() {
 }
 
 /**
+ * Exchange a single-use OAuth authorization code for access and refresh tokens.
+ * Backend contract: POST /auth/oauth/exchange
+ */
+export function exchangeOAuthCode(code, opts) {
+  return apiClient.post('/auth/oauth/exchange', { code }, opts);
+}
+
+/**
+ * Logout the authenticated user and invalidate all active sessions on the server.
+ * Backend contract: POST /auth/logout
+ */
+export function logoutUser(opts) {
+  return apiClient.post('/auth/logout', {}, opts);
+}
+
+/**
  * Returns the currently authenticated user based on the active token.
  * Throws ApiError with status 401 if invalid/expired.
  */

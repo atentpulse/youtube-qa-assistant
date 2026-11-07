@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { getCurrentUser, loginWithCredentials, registerWithCredentials, refreshToken } from '../api/auth';
+import { getCurrentUser, loginWithCredentials, registerWithCredentials, refreshToken, logoutUser } from '../api/auth';
 import { apiClient } from '../api/client';
 import {
   getToken,
@@ -122,10 +122,9 @@ export function AuthProvider({ children }) {
   }, []);
 
   /**
-   * Completes the Google OAuth flow. The backend has already verified the
-   * user with Google and issued a JWT, redirecting the browser to
-   * /oauth/callback?token=<jwt>&refresh_token=<jwt>. This stores both tokens
-   * through centralized tokenStorage, then restores the user via GET /auth/me.
+   * Completes the Google OAuth flow. The frontend exchanges the single-use
+   * authorization code with POST /auth/oauth/exchange for access and refresh tokens.
+   * This stores both tokens through centralized tokenStorage, then restores the user via GET /auth/me.
    */
   const completeOAuthLogin = useCallback(async (rawToken, rawRefreshToken = null) => {
     persistToken(rawToken);
@@ -199,13 +198,19 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const logout = useCallback(() => {
-    clearToken();
-    apiClient.clearToken();
-    setTokenState(null);
-    setUser(null);
-    setAuthStatus('unauthenticated');
-    setSessionMessage(null);
+  const logout = useCallback(async () => {
+    try {
+      await logoutUser();
+    } catch {
+      // Involuntary disconnect or network failure: still clear local session state
+    } finally {
+      clearToken();
+      apiClient.clearToken();
+      setTokenState(null);
+      setUser(null);
+      setAuthStatus('unauthenticated');
+      setSessionMessage(null);
+    }
   }, []);
 
   const clearSessionMessage = useCallback(() => setSessionMessage(null), []);

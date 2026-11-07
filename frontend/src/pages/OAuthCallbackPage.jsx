@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { exchangeOAuthCode } from '../api/auth';
 import { useAuth } from '../context/AuthContext';
 import Spinner from '../components/common/Spinner';
 import styles from './AuthPages.module.css';
@@ -22,17 +23,24 @@ export default function OAuthCallbackPage() {
         return;
       }
 
-      const token = searchParams.get('token');
-      const refreshTokenParam = searchParams.get('refresh_token');
-      if (!token) {
+      const code = searchParams.get('code');
+      if (!code) {
         if (!cancelled) {
-          setErrorMessage('No authentication token found in callback URL.');
+          setErrorMessage('No authorization code found in callback URL.');
         }
         return;
       }
 
       try {
-        await completeOAuthLogin(token, refreshTokenParam);
+        const data = await exchangeOAuthCode(code);
+        const accessToken = data?.access_token || data?.token;
+        const refreshToken = data?.refresh_token;
+
+        if (!accessToken) {
+          throw new Error('No access token returned by authentication server.');
+        }
+
+        await completeOAuthLogin(accessToken, refreshToken);
         if (!cancelled) {
           navigate('/app', { replace: true });
         }
@@ -93,7 +101,7 @@ export default function OAuthCallbackPage() {
             Completing sign in…
           </p>
           <p className={styles.supportingText} style={{ marginTop: 0 }}>
-            Verifying your Google authentication token...
+            Verifying your Google authorization code...
           </p>
         </div>
       </div>
