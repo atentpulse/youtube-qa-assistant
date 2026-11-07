@@ -10,10 +10,13 @@ import {
   Github,
   Linkedin,
   ExternalLink,
-  Search,
   ChevronRight,
   ChevronDown,
   Film,
+  Menu,
+  Copy,
+  ThumbsUp,
+  ThumbsDown,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { API_BASE_URL } from '../api/client';
@@ -49,6 +52,7 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [activeModal, setActiveModal] = useState(null);
+  const [previewMobileTab, setPreviewMobileTab] = useState('research');
 
   const handleContinueWithGoogle = () => {
     if (isAuthenticated) {
@@ -169,19 +173,40 @@ export default function LandingPage() {
 
         {/* ---- Product Preview Mockup (Illustrative Example) ---- */}
         <div className={styles.previewWrapper} id="preview" aria-label="YtGenius Application Preview">
-          <div className={styles.previewBrowserBar}>
-            <div className={styles.previewDots}>
-              <span className={`${styles.previewDot} ${styles.dotRed}`} />
-              <span className={`${styles.previewDot} ${styles.dotYellow}`} />
-              <span className={`${styles.previewDot} ${styles.dotGreen}`} />
-            </div>
-            <div className={styles.previewUrlBar}>
-              <Search size={12} />
-              <span>app.ytgenius.ai/workspace</span>
-            </div>
-          </div>
-
           <div className={styles.previewBody}>
+            {/* Mobile Workspace Top Header (Visible only on mobile <= 768px) */}
+            <div className={styles.previewMobileBar}>
+              <div className={styles.previewMobileMenuBtn} aria-hidden="true">
+                <Menu size={16} />
+              </div>
+              <div className={styles.previewMobileBrand}>
+                <span className={styles.brandYt}>Yt</span><span className={styles.brandGenius}>Genius</span>
+                <span className={styles.previewBrandRedPlay}>▶</span>
+              </div>
+            </div>
+
+            {/* Mobile Workspace Segmented Tabs: [ 🎬 Video Stage | 💬 Research ] (Visible only on mobile <= 768px) */}
+            <div className={styles.previewMobileSegmentedBar}>
+              <div className={styles.previewSegmentedControl}>
+                <button
+                  type="button"
+                  className={`${styles.previewSegmentBtn} ${previewMobileTab === 'video' ? styles.previewSegmentBtnActive : ''}`}
+                  onClick={() => setPreviewMobileTab('video')}
+                  aria-label="Show video preview"
+                >
+                  🎬 Video Stage
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.previewSegmentBtn} ${previewMobileTab === 'research' ? styles.previewSegmentBtnActive : ''}`}
+                  onClick={() => setPreviewMobileTab('research')}
+                  aria-label="Show research studio preview"
+                >
+                  💬 Research
+                </button>
+              </div>
+            </div>
+
             {/* 1. Preview Left Sidebar (Flat Conversations & Collapsed Video Library) */}
             <div className={styles.previewSidebar}>
               <div className={styles.previewSidebarBrand}>
@@ -194,11 +219,6 @@ export default function LandingPage() {
               <div className={styles.previewNewChatBtn}>
                 <span>+</span>
                 <span>New Chat</span>
-              </div>
-
-              <div className={styles.previewSearchWrap}>
-                <Search size={11} className={styles.previewSearchIcon} />
-                <span className={styles.previewSearchPlaceholder}>Search conversations…</span>
               </div>
 
               {/* Flat Conversations List */}
@@ -267,7 +287,6 @@ export default function LandingPage() {
                   <div className={styles.previewLibraryToggle}>
                     <ChevronRight size={13} className={styles.previewLibraryChevron} />
                     <span className={styles.previewSidebarSectionTitle}>VIDEO LIBRARY</span>
-                    <span className={styles.previewLibraryCount}>(2)</span>
                   </div>
                   <span className={styles.previewAddLink}>+ Add</span>
                 </div>
@@ -275,17 +294,17 @@ export default function LandingPage() {
 
               {/* User Profile Footer in Sidebar */}
               <div className={styles.previewSidebarUser}>
-                <div className={styles.previewUserAvatar}>A</div>
+                <div className={styles.previewUserAvatar}>D</div>
                 <div className={styles.previewUserInfo}>
-                  <span className={styles.previewUserName}>Ashik Raj</span>
-                  <span className={styles.previewUserEmail}>ash09876k@gmail.com</span>
+                  <span className={styles.previewUserName}>Demo User</span>
+                  <span className={styles.previewUserEmail}>user@example.com</span>
                 </div>
                 <ChevronDown size={12} className={styles.previewUserChevron} />
               </div>
             </div>
 
             {/* 2. Preview Center Video Player Stage */}
-            <div className={styles.previewVideoStage}>
+            <div className={`${styles.previewVideoStage} ${previewMobileTab === 'video' ? styles.previewPanelActive : styles.previewPanelHidden}`}>
               <div className={styles.previewPlayerBox}>
                 <img
                   src="https://images.unsplash.com/photo-1544383835-bda2bc66a55d?w=800&q=80"
@@ -317,20 +336,29 @@ export default function LandingPage() {
                   <span className={styles.previewActionBtn}>
                     Copy Link
                   </span>
+                  <span className={styles.previewPlaybackIssuesLink}>
+                    Playback issues?
+                  </span>
+                </div>
+                <div className={styles.previewMobileResearchSwitch}>
+                  <button
+                    type="button"
+                    className={styles.previewMobileSwitchBtn}
+                    onClick={() => setPreviewMobileTab('research')}
+                  >
+                    💬 Open AI Research Chat &amp; Citations →
+                  </button>
                 </div>
               </div>
             </div>
 
             {/* 3. Preview Right AI Research Studio */}
-            <div className={styles.previewResearchStudio}>
+            <div className={`${styles.previewResearchStudio} ${previewMobileTab === 'research' ? styles.previewPanelActive : styles.previewPanelHidden}`}>
               <div className={styles.previewStudioHeader}>
                 <div className={styles.previewStudioTitleWrap}>
                   <span className={styles.previewStudioTitle}>AI Research Studio</span>
                 </div>
                 <div className={styles.previewStudioActions}>
-                  <span className={styles.previewAllChatsBtn}>
-                    <MessageSquare size={11} /> All Chats (2)
-                  </span>
                   <span className={styles.previewNewChatMiniBtn}>+ New Chat</span>
                 </div>
               </div>
@@ -358,14 +386,20 @@ export default function LandingPage() {
                         ⏱ 42:10 <ExternalLink size={10} />
                       </span>
                     </div>
+                    {/* Copy and feedback actions */}
+                    <div className={styles.previewMessageActions}>
+                      <span className={styles.previewActionBtn}>
+                        <Copy size={11} /> Copy
+                      </span>
+                      <span className={styles.previewActionBtn}>
+                        <ThumbsUp size={11} />
+                      </span>
+                      <span className={styles.previewActionBtn}>
+                        <ThumbsDown size={11} />
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-
-              <div className={styles.previewStartersRow}>
-                <span className={styles.previewStartersLabel}>Suggested:</span>
-                <span className={styles.previewStarterChip}>💡 Summarize key takeaways in 3 bullet points</span>
-                <span className={styles.previewStarterChip}>💡 Explain core concepts and methodology</span>
               </div>
 
               <div className={styles.previewComposer}>

@@ -135,10 +135,6 @@ function QAComposer({ videoId, hasMessages }) {
           )}
         </button>
       </div>
-
-      <div className={styles.composerFooterText}>
-        <span>Press Enter to send, Shift+Enter for newline</span>
-      </div>
     </div>
   );
 }

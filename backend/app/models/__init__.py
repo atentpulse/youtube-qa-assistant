@@ -6,6 +6,7 @@ from app.models.user_video import UserVideo
 from app.models.question_cache import QuestionCache
 from app.models.password_reset_token import PasswordResetToken
 from app.models.email_verification_token import EmailVerificationToken
+from app.models.bug_report import BugReport
 
 __all__ = [
     "User",
@@ -16,4 +17,5 @@ __all__ = [
     "QuestionCache",
     "PasswordResetToken",
     "EmailVerificationToken",
+    "BugReport",
 ]

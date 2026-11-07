@@ -679,9 +679,9 @@
 
 /* ---- Q&A composer ---- */
 .composerWrap {
-  padding-top: 12px;
+  padding-top: 10px;
   padding-right: max(18px, env(safe-area-inset-right));
-  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
   padding-left: max(18px, env(safe-area-inset-left));
   border-top: 1px solid var(--border-default, #303030);
   background: var(--bg-surface-1, #181818);
@@ -728,7 +728,26 @@
   min-height: 22px;
   max-height: 140px;
   overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   font-family: inherit;
+}
+
+.composerInput::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
+.composerInput::-webkit-scrollbar-thumb {
+  display: none !important;
+  background: transparent !important;
+}
+
+.composerInput::-webkit-scrollbar-track {
+  display: none !important;
+  background: transparent !important;
 }
 
 /* The parent .composerBar shows the single focus ring (focus-within);
@@ -767,22 +786,6 @@
 
 .composerSubmit:not(:disabled):hover {
   opacity: 0.88;
-}
-
-.composerFooterText {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 10.5px;
-  color: var(--text-muted, #717171);
-  max-width: 740px;
-  margin: 6px auto 0;
-  padding: 0 4px;
-}
-
-.groundingFooterTag {
-  color: var(--accent-blue, #3ea6ff);
-  font-weight: 500;
 }
 
 /* ---- Responsive Breakpoints ---- */
@@ -836,9 +839,9 @@
   }
 
   .composerWrap {
-    padding-top: 10px;
+    padding-top: 8px;
     padding-right: max(12px, env(safe-area-inset-right));
-    padding-bottom: max(14px, env(safe-area-inset-bottom));
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
     padding-left: max(12px, env(safe-area-inset-left));
   }
 

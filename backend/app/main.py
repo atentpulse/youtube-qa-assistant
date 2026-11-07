@@ -17,12 +17,14 @@ from app.models import (
     QuestionCache,
     PasswordResetToken,
     EmailVerificationToken,
+    BugReport,
 )
 from app.routers import (
     auth,
     conversations,
     videos,
     questions,
+    support,
 )
 from app.schemas.auth import UserResponse
 from app.services.rag_service import RAGService
@@ -94,6 +96,10 @@ app.include_router(
 
 app.include_router(
     questions.router
+)
+
+app.include_router(
+    support.router
 )
 
 

@@ -165,8 +165,8 @@ export default function SettingsPage() {
       <Modal
         isOpen={isLogoutModalOpen}
         onClose={() => setIsLogoutModalOpen(false)}
-        title="Sign out of YtGenius?"
-        confirmLabel="Sign Out"
+        title="Log out of YtGenius?"
+        confirmLabel="Log Out"
         cancelLabel="Cancel"
         isDestructive
         onConfirm={handleConfirmLogout}

@@ -667,6 +667,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .previewActionBtn {
@@ -679,6 +680,24 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
+}
+
+.previewPlaybackIssuesLink {
+  color: var(--text-muted, #717171);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 4px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 0.15s ease;
+}
+
+.previewPlaybackIssuesLink:hover {
+  color: var(--text-secondary, #aaaaaa);
+}
+
+.previewMobileResearchSwitch {
+  display: none;
 }
 
 /* 3. Preview AI Research Studio */
@@ -709,6 +728,19 @@
   font-size: 12.5px;
   font-weight: 700;
   color: var(--text-primary, #f1f1f1);
+}
+
+.previewGroundingBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--accent-blue, #3ea6ff);
+  background: var(--accent-blue-bg, rgba(62, 166, 255, 0.1));
+  border: 1px solid rgba(62, 166, 255, 0.25);
+  padding: 1px 6px;
+  border-radius: var(--radius-pill, 9999px);
 }
 
 .previewStudioActions {
@@ -821,6 +853,13 @@
   gap: 4px;
 }
 
+.previewMessageActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+
 .previewStartersRow {
   display: flex;
   align-items: center;
@@ -854,7 +893,7 @@
 }
 
 .previewComposer {
-  padding: 10px 16px 12px;
+  padding: 12px 16px;
   border-top: 1px solid var(--border-default, #303030);
 }
 
@@ -879,6 +918,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Base styles: hidden on desktop viewports */
+.previewMobileBar,
+.previewMobileSegmentedBar {
+  display: none;
 }
 
 /* ---- Features Section ---- */
@@ -1211,13 +1256,170 @@
   }
 
   .previewBody {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
+    grid-template-columns: none;
     max-height: none;
+    min-height: auto;
   }
 
-  .previewSidebar,
+  .previewMobileBar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--bg-surface-1, #181818);
+    border-bottom: 1px solid var(--border-default, #303030);
+    flex-shrink: 0;
+  }
+
+  .previewMobileMenuBtn {
+    background: none;
+    border: none;
+    color: var(--text-primary, #f1f1f1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border-radius: 6px;
+    cursor: default;
+  }
+
+  .previewMobileBrand {
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: -0.02em;
+    color: var(--text-primary, #f1f1f1);
+    display: flex;
+    align-items: center;
+  }
+
+  .previewBrandRedPlay {
+    color: var(--accent-red, #ff0033);
+    font-size: 13px;
+    margin-left: 4px;
+  }
+
+  .previewMobileSegmentedBar {
+    display: flex;
+    padding: 6px 12px;
+    background: var(--bg-surface-1, #181818);
+    border-bottom: 1px solid var(--border-default, #303030);
+    flex-shrink: 0;
+  }
+
+  .previewSegmentedControl {
+    display: flex;
+    width: 100%;
+    background: var(--bg-surface-2, #212121);
+    border-radius: 8px;
+    padding: 3px;
+    border: 1px solid var(--border-default, #303030);
+  }
+
+  .previewSegmentBtn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    padding: 7px 12px;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--text-secondary, #aaaaaa);
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.15s ease;
+    touch-action: manipulation;
+  }
+
+  .previewSegmentBtnActive {
+    background: var(--bg-surface-1, #181818);
+    color: var(--text-primary, #f1f1f1);
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  }
+
+  .previewSidebar {
+    display: none !important;
+  }
+
+  .previewPanelActive {
+    display: flex !important;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .previewPanelHidden {
+    display: none !important;
+  }
+
   .previewVideoStage {
-    display: none;
+    border-right: none;
+    border-bottom: 1px solid var(--border-default, #303030);
+  }
+
+  .previewPlayerPoster {
+    max-height: 220px;
+    object-fit: cover;
+  }
+
+  .previewVideoDetails {
+    padding: 12px 14px;
+  }
+
+  .previewResearchStudio {
+    min-height: 360px;
+  }
+
+  .previewChatFeed {
+    padding: 12px 14px;
+  }
+
+  .previewWindowHeader {
+    display: none !important;
+  }
+
+  .previewAllChatsBtn {
+    display: none !important;
+  }
+
+  .previewStartersRow {
+    display: none !important;
+  }
+
+  .previewComposer {
+    padding: 10px 12px;
+  }
+
+  .previewMobileResearchSwitch {
+    display: block;
+    margin-top: 12px;
+  }
+
+  .previewMobileSwitchBtn {
+    width: 100%;
+    padding: 10px 14px;
+    min-height: 44px;
+    border-radius: 8px;
+    background: var(--bg-surface-3, #272727);
+    border: 1px solid var(--border-default, #303030);
+    color: var(--text-primary, #f1f1f1);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: background 0.15s ease;
+    touch-action: manipulation;
+  }
+
+  .previewMobileSwitchBtn:hover {
+    background: var(--bg-surface-2, #212121);
   }
 
   .navContainer {

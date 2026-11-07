@@ -208,7 +208,7 @@ export default function AccountCategory({ onTriggerLogout }) {
 
         <div className={common.row}>
           <div className={common.rowInfo}>
-            <span className={common.rowLabel}>Sign Out</span>
+            <span className={common.rowLabel}>Log Out</span>
             <span className={common.rowDescription}>
               Safely clears authentication tokens and returns you to the login screen.
             </span>
@@ -219,7 +219,7 @@ export default function AccountCategory({ onTriggerLogout }) {
             onClick={onTriggerLogout}
             data-testid="settings-signout-btn"
           >
-            <LogOut size={14} /> Sign Out
+            <LogOut size={14} /> Log Out
           </button>
         </div>
       </div>

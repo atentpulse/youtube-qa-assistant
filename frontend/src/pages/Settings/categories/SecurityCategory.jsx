@@ -88,7 +88,7 @@ export default function SecurityCategory({ onTriggerLogout, onNavigateCategory }
               Stateless JWT Token Lifecycle
             </strong>
             <span>
-              YtGenius issues cryptographically signed HMAC-SHA256 tokens. Tokens expire after 24 hours. Sign out invalidates the token on this device. Remote multi-device session revocation is not supported in the stateless JWT configuration.
+              YtGenius issues cryptographically signed HMAC-SHA256 tokens. Tokens expire after 24 hours. Log out invalidates the token on this device. Remote multi-device session revocation is not supported in the stateless JWT configuration.
             </span>
           </div>
         </div>
@@ -110,7 +110,7 @@ export default function SecurityCategory({ onTriggerLogout, onNavigateCategory }
               onClick={onTriggerLogout}
               data-testid="security-signout-session-btn"
             >
-              <LogOut size={13} /> Sign Out This Device
+              <LogOut size={13} /> Log Out This Device
             </button>
           </div>
         </div>

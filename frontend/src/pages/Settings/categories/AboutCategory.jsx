@@ -2,27 +2,59 @@ import React, { useState } from 'react';
 import Modal from '../../../components/common/Modal';
 import { useToast } from '../../../context/ToastContext';
 import { HelpCircle, Bug, FileText, Shield } from 'lucide-react';
+import { submitBugReport } from '../../../api/support';
 import common from './CategoryCommon.module.css';
 
 export default function AboutCategory() {
   const toast = useToast();
   const [activeModal, setActiveModal] = useState(null); // 'bug' | 'privacy' | 'terms' | 'help'
+  const [bugTitle, setBugTitle] = useState('');
   const [bugDescription, setBugDescription] = useState('');
+  const [bugCategory, setBugCategory] = useState('general');
   const [isSubmittingBug, setIsSubmittingBug] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
 
-  const handleSubmitBug = (e) => {
-    e.preventDefault();
-    if (!bugDescription.trim()) {
-      toast.error('Please describe the issue before submitting.');
+  const handleSubmitBug = async (e) => {
+    if (e?.preventDefault) e.preventDefault();
+    if (isSubmittingBug) return;
+
+    const trimmedTitle = bugTitle.trim();
+    const trimmedDesc = bugDescription.trim();
+
+    if (!trimmedTitle || trimmedTitle.length < 3) {
+      toast.error('Please enter an issue title (at least 3 characters).');
       return;
     }
+
+    if (!trimmedDesc || trimmedDesc.length < 10) {
+      toast.error('Please provide a detailed description (at least 10 characters).');
+      return;
+    }
+
     setIsSubmittingBug(true);
-    setTimeout(() => {
-      setIsSubmittingBug(false);
+    setSubmitError(null);
+
+    try {
+      await submitBugReport({
+        title: trimmedTitle,
+        description: trimmedDesc,
+        category: bugCategory,
+      });
+      setBugTitle('');
       setBugDescription('');
+      setBugCategory('general');
       setActiveModal(null);
-      toast.success('Bug report recorded. Thank you for helping improve YtGenius!');
-    }, 600);
+      toast.success('Bug report recorded successfully! Thank you for helping improve YtGenius.');
+    } catch (err) {
+      const detail = err.response?.data?.detail;
+      const errorMsg = typeof detail === 'string'
+        ? detail
+        : (Array.isArray(detail) ? detail[0]?.msg : 'Failed to submit bug report. Please try again.');
+      setSubmitError(errorMsg);
+      toast.error(errorMsg);
+    } finally {
+      setIsSubmittingBug(false);
+    }
   };
 
   return (
@@ -236,7 +268,10 @@ export default function AboutCategory() {
       {/* Bug Report Modal */}
       <Modal
         isOpen={activeModal === 'bug'}
-        onClose={() => setActiveModal(null)}
+        onClose={() => {
+          setActiveModal(null);
+          setSubmitError(null);
+        }}
         title="Report a Problem"
         confirmLabel="Submit Report"
         cancelLabel="Cancel"
@@ -244,18 +279,84 @@ export default function AboutCategory() {
         onConfirm={handleSubmitBug}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }}>
-            Describe the bug or unexpected behavior you encountered:
-          </p>
-          <textarea
-            className={common.input}
-            style={{ width: '100%', maxWidth: '100%', minHeight: '90px', resize: 'vertical' }}
-            placeholder="e.g. Timestamp citation didn't seek properly on video..."
-            value={bugDescription}
-            onChange={(e) => setBugDescription(e.target.value)}
-            required
-            data-testid="about-bug-description-input"
-          />
+          {submitError && (
+            <div
+              style={{
+                padding: '8px 12px',
+                borderRadius: '6px',
+                background: 'rgba(239, 68, 68, 0.12)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                color: '#ef4444',
+                fontSize: '12px',
+              }}
+            >
+              {submitError}
+            </div>
+          )}
+
+          <div>
+            <label
+              htmlFor="bug-title"
+              style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}
+            >
+              Issue Title <span style={{ color: 'var(--accent-red, #ff0033)' }}>*</span>
+            </label>
+            <input
+              id="bug-title"
+              type="text"
+              className={common.input}
+              style={{ width: '100%', maxWidth: '100%' }}
+              placeholder="Brief summary of the issue (e.g. Playback desync on seek)"
+              value={bugTitle}
+              onChange={(e) => setBugTitle(e.target.value)}
+              maxLength={200}
+              required
+              data-testid="about-bug-title-input"
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="bug-category"
+              style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}
+            >
+              Category
+            </label>
+            <select
+              id="bug-category"
+              className={common.select}
+              style={{ width: '100%', maxWidth: '100%' }}
+              value={bugCategory}
+              onChange={(e) => setBugCategory(e.target.value)}
+              data-testid="about-bug-category-select"
+            >
+              <option value="general">General / Other</option>
+              <option value="video_playback">Video Playback &amp; Streaming</option>
+              <option value="transcript_sync">Transcript Ingestion &amp; Sync</option>
+              <option value="ai_qa">AI Responses &amp; Citations</option>
+              <option value="ui_bug">Interface &amp; Layout</option>
+            </select>
+          </div>
+
+          <div>
+            <label
+              htmlFor="bug-description"
+              style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}
+            >
+              Description &amp; Steps to Reproduce <span style={{ color: 'var(--accent-red, #ff0033)' }}>*</span>
+            </label>
+            <textarea
+              id="bug-description"
+              className={common.input}
+              style={{ width: '100%', maxWidth: '100%', minHeight: '90px', resize: 'vertical' }}
+              placeholder="What happened? Please describe the expected vs actual behavior and steps to reproduce…"
+              value={bugDescription}
+              onChange={(e) => setBugDescription(e.target.value)}
+              maxLength={5000}
+              required
+              data-testid="about-bug-description-input"
+            />
+          </div>
         </div>
       </Modal>
 

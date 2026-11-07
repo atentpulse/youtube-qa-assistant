@@ -197,7 +197,6 @@ export default function Sidebar() {
                   <span className={styles.brandName}>
                     <span className={styles.brandYt}>Yt</span><span className={styles.brandGenius}>Genius</span>
                   </span>
-                  <span className={styles.brandSubtitle}>AI Video Research</span>
                 </div>
               </div>
 
@@ -306,9 +305,6 @@ export default function Sidebar() {
               {/* ---- A. Conversations Section (Flat Recent List) ---- */}
               <div className={styles.sectionHeader}>
                 <span className={styles.sectionTitle}>Conversations</span>
-                <span className={styles.itemCount}>
-                  {conversations.length > 0 ? `(${conversations.length})` : ''}
-                </span>
               </div>
 
               {conversations.length > 4 && (
@@ -397,9 +393,6 @@ export default function Sidebar() {
                     <ChevronRight size={14} />
                   </span>
                   <span className={styles.sectionTitle}>Video Library</span>
-                  <span className={styles.itemCount}>
-                    {videos.length > 0 ? `(${videos.length})` : ''}
-                  </span>
                 </button>
 
                 <button

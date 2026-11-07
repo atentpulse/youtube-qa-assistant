@@ -150,7 +150,7 @@ export default function UserProfileDropdown({ isCollapsed = false, onTriggerLogo
             data-testid="profile-menu-sign-out"
           >
             <LogOut size={15} className={styles.menuIcon} />
-            <span>Sign Out</span>
+            <span>Log Out</span>
           </button>
         </div>
       )}
