@@ -396,6 +396,7 @@ def send_conversation_message(
         conversation_id=conversation.id,
         role="assistant",
         content=rag_result["answer"],
+        citations=rag_result.get("sources", []),
     )
 
     return {

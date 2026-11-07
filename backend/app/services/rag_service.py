@@ -391,9 +391,14 @@ class RAGService:
         if not conversation_context.strip():
 
             cached_answer = cache_service.get_cached_answer(
-    video_id=video_id,
-    question=question,
-)
+                video_id=video_id,
+                question=question,
+                answer_length=answer_length,
+                response_style=response_style,
+                prefer_structured=prefer_structured,
+                include_examples=include_examples,
+                model_id=getattr(self.llm_service, "model", "default"),
+            )
 
             if cached_answer:
 
@@ -401,9 +406,14 @@ class RAGService:
 
                     # Remove old bad cache entry
                     cache_service.delete_cached_answer(
-    video_id=video_id,
-    question=question,
-)
+                        video_id=video_id,
+                        question=question,
+                        answer_length=answer_length,
+                        response_style=response_style,
+                        prefer_structured=prefer_structured,
+                        include_examples=include_examples,
+                        model_id=getattr(self.llm_service, "model", "default"),
+                    )
 
                     print("Removed old not-found cache entry.")
 
@@ -674,11 +684,16 @@ class RAGService:
         if not conversation_context.strip():
 
             cache_service.save_answer(
-    video_id=video_id,
-    question=question,
-    answer=answer,
-    sources=sources,
-)
+                video_id=video_id,
+                question=question,
+                answer=answer,
+                sources=sources,
+                answer_length=answer_length,
+                response_style=response_style,
+                prefer_structured=prefer_structured,
+                include_examples=include_examples,
+                model_id=getattr(self.llm_service, "model", "default"),
+            )
 
         # --------------------------------
         # 10. Print performance

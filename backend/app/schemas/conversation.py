@@ -39,6 +39,8 @@ class MessageResponse(BaseModel):
 
     content: str
 
+    sources: list[dict] = []
+
     created_at: datetime
 
 

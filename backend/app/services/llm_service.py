@@ -1,8 +1,10 @@
 import os
+import re
 import json
 
 from dotenv import load_dotenv
 from groq import Groq
+from app.core.config import settings
 
 load_dotenv()
 
@@ -20,6 +22,7 @@ class LLMService:
             raise ValueError("GROQ_API_KEY is not set in the .env file")
 
         self.client = Groq(api_key=api_key)
+        self.model = settings.GROQ_MODEL or "openai/gpt-oss-20b"
 
     def needs_question_rewrite(
         self,
@@ -151,7 +154,7 @@ CURRENT QUESTION:
 REWRITTEN STANDALONE QUESTION:"""
 
         response = self.client.chat.completions.create(
-            model="openai/gpt-oss-20b",
+            model=self.model,
             messages=[
                 {
                     "role": "system",
@@ -293,7 +296,7 @@ RETURN JSON:
 """
 
         response = self.client.chat.completions.create(
-            model="openai/gpt-oss-20b",
+            model=self.model,
             messages=[
                 {
                     "role": "system",
@@ -310,30 +313,39 @@ RETURN JSON:
         content = response.choices[0].message.content
 
         if not content:
-
             return {
                 "answer": self.NOT_FOUND_MESSAGE,
                 "sources": [],
             }
 
+        clean_content = content.strip()
+        clean_content = re.sub(r"^```(?:json)?\s*", "", clean_content, flags=re.IGNORECASE)
+        clean_content = re.sub(r"\s*```$", "", clean_content)
+        clean_content = clean_content.strip()
+
+        result = None
         try:
-
-            result = json.loads(content.strip())
-
-            return {
-                "answer": result.get(
-                    "answer",
-                    self.NOT_FOUND_MESSAGE,
-                ),
-                "sources": result.get(
-                    "sources",
-                    [],
-                ),
-            }
-
+            result = json.loads(clean_content)
         except json.JSONDecodeError:
+            match = re.search(r"\{.*\}", clean_content, flags=re.DOTALL)
+            if match:
+                try:
+                    result = json.loads(match.group(0))
+                except json.JSONDecodeError:
+                    result = None
 
+        if not isinstance(result, dict):
             return {
                 "answer": self.NOT_FOUND_MESSAGE,
                 "sources": [],
             }
+
+        answer = result.get("answer", self.NOT_FOUND_MESSAGE)
+        sources = result.get("sources", [])
+        if not isinstance(sources, list):
+            sources = []
+
+        return {
+            "answer": answer,
+            "sources": sources,
+        }

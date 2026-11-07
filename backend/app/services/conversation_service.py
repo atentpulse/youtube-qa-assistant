@@ -114,12 +114,22 @@ class ConversationService:
         conversation_id: int,
         role: str,
         content: str,
+        citations: str | list[dict] | None = None,
     ) -> Message:
+        import json
+
+        citations_str = None
+        if citations is not None:
+            if isinstance(citations, (list, dict)):
+                citations_str = json.dumps(citations)
+            else:
+                citations_str = str(citations)
 
         message = Message(
             conversation_id=conversation_id,
             role=role,
             content=content,
+            citations=citations_str,
         )
 
         db.add(

@@ -1,3 +1,4 @@
+import json
 from sqlalchemy import (
     Column,
     DateTime,
@@ -52,3 +53,14 @@ class Message(Base):
         "Conversation",
         back_populates="messages",
     )
+
+    @property
+    def sources(self) -> list[dict]:
+        """Deserialize citations JSON string into list of citation dicts for responses."""
+        if not self.citations:
+            return []
+        try:
+            parsed = json.loads(self.citations)
+            return parsed if isinstance(parsed, list) else []
+        except Exception:
+            return []
