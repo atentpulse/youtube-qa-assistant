@@ -1,4 +1,5 @@
 from datetime import timedelta
+import urllib.parse
 import pytest
 from app.auth.jwt import create_access_token, create_refresh_token
 
@@ -581,3 +582,79 @@ async def test_google_callback_redirects_with_access_and_refresh_tokens(async_cl
     # Security assertion: tokens must NEVER be exposed in redirect query strings
     assert "token=" not in location
     assert "refresh_token=" not in location
+
+
+@pytest.mark.asyncio
+async def test_google_callback_handles_mismatching_state(async_client, monkeypatch):
+    """Verify that CSRF/state mismatch during Google callback redirects cleanly to login with user-friendly error."""
+    from unittest.mock import AsyncMock, MagicMock
+    from authlib.integrations.base_client.errors import MismatchingStateError
+    from app.routers import auth as auth_router
+
+    mock_oauth = MagicMock()
+    mock_google = MagicMock()
+    mock_google.authorize_access_token = AsyncMock(
+        side_effect=MismatchingStateError()
+    )
+    mock_oauth.google = mock_google
+    monkeypatch.setattr(auth_router, "oauth", mock_oauth)
+
+    response = await async_client.get(
+        "/auth/google/callback?code=mock_code&state=mismatched_state",
+        follow_redirects=False,
+    )
+    assert response.status_code == 307
+    location = response.headers.get("location", "")
+    assert "/login?error=" in location
+    assert "state%20mismatched" in location or "state+mismatched" in location or "state mismatched" in urllib.parse.unquote(location)
+
+
+@pytest.mark.asyncio
+async def test_google_callback_handles_connect_timeout(async_client, monkeypatch):
+    """Verify that network timeout during Google token exchange redirects cleanly to login with timeout notice."""
+    from unittest.mock import AsyncMock, MagicMock
+    import httpx
+    from app.routers import auth as auth_router
+
+    mock_oauth = MagicMock()
+    mock_google = MagicMock()
+    mock_google.authorize_access_token = AsyncMock(
+        side_effect=httpx.ConnectTimeout("Handshake timed out")
+    )
+    mock_oauth.google = mock_google
+    monkeypatch.setattr(auth_router, "oauth", mock_oauth)
+
+    response = await async_client.get(
+        "/auth/google/callback?code=mock_code&state=mock_state",
+        follow_redirects=False,
+    )
+    assert response.status_code == 307
+    location = response.headers.get("location", "")
+    assert "/login?error=" in location
+    assert "timed%20out" in location or "timed+out" in location or "timed out" in urllib.parse.unquote(location)
+
+
+@pytest.mark.asyncio
+async def test_google_login_handles_connect_timeout(async_client, monkeypatch):
+    """Verify that network timeout during Google authorization redirect returns a clean redirect to login."""
+    from unittest.mock import AsyncMock, MagicMock
+    import httpx
+    from app.routers import auth as auth_router
+
+    mock_oauth = MagicMock()
+    mock_google = MagicMock()
+    mock_google.authorize_redirect = AsyncMock(
+        side_effect=httpx.ConnectTimeout("OpenID discovery timed out")
+    )
+    mock_oauth.google = mock_google
+    monkeypatch.setattr(auth_router, "oauth", mock_oauth)
+
+    response = await async_client.get(
+        "/auth/google/login",
+        follow_redirects=False,
+    )
+    assert response.status_code == 307
+    location = response.headers.get("location", "")
+    assert "/login?error=" in location
+    assert "timed%20out" in location or "timed+out" in location or "timed out" in urllib.parse.unquote(location)
+

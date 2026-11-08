@@ -5,6 +5,8 @@ import secrets
 import urllib.parse
 from datetime import datetime, timedelta, timezone
 from fastapi_mail.errors import ConnectionErrors
+import httpx
+from authlib.integrations.base_client.errors import MismatchingStateError, OAuthError
 
 logger = logging.getLogger(__name__)
 
@@ -455,9 +457,7 @@ async def google_login(
     request: Request,
 ):
 
-    redirect_uri = os.getenv(
-        "GOOGLE_REDIRECT_URI"
-    )
+    redirect_uri = os.getenv("GOOGLE_REDIRECT_URI") or settings.GOOGLE_REDIRECT_URI
 
     if not redirect_uri:
 
@@ -474,10 +474,34 @@ async def google_login(
         if key.startswith("_state_google_") or key.startswith("_google_"):
             request.session.pop(key, None)
 
-    return await oauth.google.authorize_redirect(
-        request,
-        redirect_uri,
-    )
+    try:
+        return await oauth.google.authorize_redirect(
+            request,
+            redirect_uri,
+        )
+    except (httpx.TimeoutException, httpx.ConnectTimeout) as error:
+        logger.error(
+            "Timeout connecting to Google OAuth service during login redirect: %s",
+            error,
+        )
+        error_message = urllib.parse.quote(
+            "Connection to Google timed out. Please try again."
+        )
+        return RedirectResponse(
+            url=f"{FRONTEND_URL}/login?error={error_message}"
+        )
+    except Exception as error:
+        logger.error(
+            "Unexpected error during Google login redirect: %s: %s",
+            type(error).__name__,
+            error,
+        )
+        error_message = urllib.parse.quote(
+            "Unable to initiate Google login. Please try again."
+        )
+        return RedirectResponse(
+            url=f"{FRONTEND_URL}/login?error={error_message}"
+        )
 
 
 # --------------------------------
@@ -602,12 +626,48 @@ async def google_callback(
         )
         return response
 
-    except ValueError as error:
+    except MismatchingStateError as error:
+        logger.warning(
+            "OAuth state mismatch during Google callback: %s",
+            error,
+        )
+        error_message = urllib.parse.quote(
+            "Sign in session expired or state mismatched. Please try again."
+        )
+        return RedirectResponse(
+            url=f"{FRONTEND_URL}/login?error={error_message}"
+        )
 
+    except (httpx.TimeoutException, httpx.ConnectTimeout) as error:
+        logger.error(
+            "OAuth token exchange network timeout during Google callback: %s",
+            error,
+        )
+        error_message = urllib.parse.quote(
+            "Connection to Google timed out. Please try again."
+        )
+        return RedirectResponse(
+            url=f"{FRONTEND_URL}/login?error={error_message}"
+        )
+
+    except OAuthError as error:
+        logger.warning(
+            "OAuth error during Google callback: %s (%s)",
+            type(error).__name__,
+            error,
+        )
+        error_message = urllib.parse.quote(
+            "Google authentication failed. Please try again."
+        )
+        return RedirectResponse(
+            url=f"{FRONTEND_URL}/login?error={error_message}"
+        )
+
+    except ValueError as error:
+        logger.warning("Validation error during Google callback: %s", error)
         error_message = urllib.parse.quote(
             str(error)
         )
-
         return RedirectResponse(
             url=(
                 f"{FRONTEND_URL}/login"
@@ -616,16 +676,14 @@ async def google_callback(
         )
 
     except Exception as error:
-
-        print(
-            "Google OAuth callback error: "
-            f"{type(error).__name__}: {error}"
+        logger.error(
+            "Google OAuth callback unexpected error: %s: %s",
+            type(error).__name__,
+            error,
         )
-
         error_message = urllib.parse.quote(
-            "Google authentication failed."
+            "Google authentication failed. Please try again."
         )
-
         return RedirectResponse(
             url=(
                 f"{FRONTEND_URL}/login"
