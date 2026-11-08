@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     # Google OAuth
     GOOGLE_CLIENT_ID: Optional[str] = None
     GOOGLE_CLIENT_SECRET: Optional[str] = None
-    GOOGLE_REDIRECT_URI: str = "http://localhost:8001/auth/google/callback"
+    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/auth/google/callback"
 
     # Frontend URL
     FRONTEND_URL: str = "http://localhost:3000"

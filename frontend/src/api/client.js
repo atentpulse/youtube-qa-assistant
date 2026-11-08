@@ -1,4 +1,4 @@
-const DEFAULT_API_BASE_URL = 'http://localhost:8001';
+const DEFAULT_API_BASE_URL = 'http://localhost:8000';
 
 export const API_BASE_URL =
   (typeof import.meta !== 'undefined' &&
@@ -83,6 +83,7 @@ class ApiClient {
     const fetchOptions = {
       method,
       headers: reqHeaders,
+      credentials: 'include',
       signal: signal || (controller ? controller.signal : undefined),
     };
 
