@@ -78,6 +78,15 @@ class Settings(BaseSettings):
             return [origin.strip() for origin in value.split(",") if origin.strip()]
         return value
 
+    @field_validator("GOOGLE_REDIRECT_URI", mode="before")
+    @classmethod
+    def sanitize_google_redirect_uri(cls, value: Optional[str]) -> str:
+        if isinstance(value, str):
+            clean = value.strip().strip("'\"")
+            if clean:
+                return clean.rstrip("/")
+        return "http://localhost:8000/auth/google/callback"
+
     @field_validator("CHROME_EXTENSION_IDS", mode="before")
     @classmethod
     def parse_extension_ids(cls, value: Union[List[str], str]) -> List[str]:

@@ -658,3 +658,49 @@ async def test_google_login_handles_connect_timeout(async_client, monkeypatch):
     assert "/login?error=" in location
     assert "timed%20out" in location or "timed+out" in location or "timed out" in urllib.parse.unquote(location)
 
+
+@pytest.mark.asyncio
+async def test_google_login_passes_canonical_redirect_uri(async_client, monkeypatch):
+    """Verify that GET /auth/google/login passes the exact canonical redirect URI to Authlib."""
+    from unittest.mock import AsyncMock, MagicMock
+    from fastapi.responses import RedirectResponse
+    from app.routers import auth as auth_router
+
+    mock_oauth = MagicMock()
+    mock_google = MagicMock()
+    mock_google.authorize_redirect = AsyncMock(
+        return_value=RedirectResponse("https://accounts.google.com/o/oauth2/v2/auth?client_id=test&redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Fauth%2Fgoogle%2Fcallback")
+    )
+    mock_oauth.google = mock_google
+    monkeypatch.setattr(auth_router, "oauth", mock_oauth)
+
+    response = await async_client.get(
+        "/auth/google/login",
+        follow_redirects=False,
+    )
+    assert response.status_code == 307 or response.status_code == 302
+    mock_google.authorize_redirect.assert_awaited_once()
+    passed_request, passed_redirect_uri = mock_google.authorize_redirect.call_args[0]
+    assert passed_redirect_uri == "http://localhost:8000/auth/google/callback"
+
+
+def test_google_redirect_uri_config_sanitization_and_precedence(monkeypatch):
+    """Verify that GOOGLE_REDIRECT_URI sanitizes quotes, trailing slashes, whitespace, and honors env precedence."""
+    from app.core.config import Settings
+
+    # Case 1: Clean canonical default
+    monkeypatch.delenv("GOOGLE_REDIRECT_URI", raising=False)
+    cfg1 = Settings(GOOGLE_CLIENT_ID="dummy_id", GOOGLE_CLIENT_SECRET="dummy_secret")
+    assert cfg1.GOOGLE_REDIRECT_URI == "http://localhost:8000/auth/google/callback"
+
+    # Case 2: Accidental trailing slash and quotes in environment variable
+    monkeypatch.setenv("GOOGLE_REDIRECT_URI", ' "http://localhost:8000/auth/google/callback/" ')
+    cfg2 = Settings(GOOGLE_CLIENT_ID="dummy_id", GOOGLE_CLIENT_SECRET="dummy_secret")
+    assert cfg2.GOOGLE_REDIRECT_URI == "http://localhost:8000/auth/google/callback"
+
+    # Case 3: Custom environment override
+    monkeypatch.setenv("GOOGLE_REDIRECT_URI", "https://api.ytgenius.app/auth/google/callback")
+    cfg3 = Settings(GOOGLE_CLIENT_ID="dummy_id", GOOGLE_CLIENT_SECRET="dummy_secret")
+    assert cfg3.GOOGLE_REDIRECT_URI == "https://api.ytgenius.app/auth/google/callback"
+
+

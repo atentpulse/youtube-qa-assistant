@@ -457,7 +457,11 @@ async def google_login(
     request: Request,
 ):
 
-    redirect_uri = os.getenv("GOOGLE_REDIRECT_URI") or settings.GOOGLE_REDIRECT_URI
+    redirect_uri = (
+        os.getenv("GOOGLE_REDIRECT_URI")
+        or settings.GOOGLE_REDIRECT_URI
+        or "http://localhost:8000/auth/google/callback"
+    ).strip().strip("'\"").rstrip("/")
 
     if not redirect_uri:
 
@@ -473,6 +477,8 @@ async def google_login(
     for key in list(request.session.keys()):
         if key.startswith("_state_google_") or key.startswith("_google_"):
             request.session.pop(key, None)
+
+    logger.info("Initiating Google OAuth login redirect with redirect_uri: %s", redirect_uri)
 
     try:
         return await oauth.google.authorize_redirect(
