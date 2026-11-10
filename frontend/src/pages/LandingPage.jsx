@@ -12,11 +12,14 @@ import {
   ExternalLink,
   ChevronRight,
   ChevronDown,
-  Film,
+  ChevronUp,
   Menu,
   Copy,
   ThumbsUp,
   ThumbsDown,
+  Minimize2,
+  ArrowUp,
+  Search,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { API_BASE_URL } from '../api/client';
@@ -207,13 +210,18 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* 1. Preview Left Sidebar (Flat Conversations & Collapsed Video Library) */}
+            {/* 1. Preview Left Sidebar */}
             <div className={styles.previewSidebar}>
               <div className={styles.previewSidebarBrand}>
-                <div className={styles.previewBrandBadge}>▶</div>
-                <span className={styles.previewBrand}>
-                  <span className={styles.brandYt}>Yt</span><span className={styles.brandGenius}>Genius</span>
-                </span>
+                <div className={styles.previewBrandGroup}>
+                  <div className={styles.previewBrandBadge}>▶</div>
+                  <span className={styles.previewBrand}>
+                    <span className={styles.brandYt}>Yt</span><span className={styles.brandGenius}>Genius</span>
+                  </span>
+                </div>
+                <div className={styles.previewSidebarCollapseBtn} aria-label="Collapse sidebar">
+                  ◀
+                </div>
               </div>
 
               <div className={styles.previewNewChatBtn}>
@@ -221,123 +229,183 @@ export default function LandingPage() {
                 <span>New Chat</span>
               </div>
 
-              {/* Flat Conversations List */}
-              <div className={styles.previewSidebarGroup}>
-                <p className={styles.previewSidebarSectionTitle}>CONVERSATIONS</p>
-                <div className={styles.previewConvList}>
-                  {/* Active Conversation */}
-                  <div className={`${styles.previewConvItem} ${styles.previewConvItemActive}`}>
-                    <span className={styles.previewConvIconActive}>
-                      <MessageSquare size={13} />
-                    </span>
-                    <div className={styles.previewConvBody}>
-                      <div className={styles.previewConvTitleRow}>
-                        <span className={styles.previewConvTitle}>Explain GROUP BY &amp; HAVING</span>
-                      </div>
-                      <div className={styles.previewConvSubline}>
-                        <span className={styles.previewConvVideo}>
-                          <Film size={10} /> SQL Full Course 2026…
-                        </span>
-                        <span className={styles.previewConvTime}>2m ago</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Secondary Conversation 1 */}
-                  <div className={styles.previewConvItem}>
-                    <span className={styles.previewConvIcon}>
-                      <MessageSquare size={13} />
-                    </span>
-                    <div className={styles.previewConvBody}>
-                      <div className={styles.previewConvTitleRow}>
-                        <span className={styles.previewConvTitle}>SELECT statement &amp; filters</span>
-                      </div>
-                      <div className={styles.previewConvSubline}>
-                        <span className={styles.previewConvVideo}>
-                          <Film size={10} /> SQL Full Course 2026…
-                        </span>
-                        <span className={styles.previewConvTime}>1h ago</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Secondary Conversation 2 */}
-                  <div className={styles.previewConvItem}>
-                    <span className={styles.previewConvIcon}>
-                      <MessageSquare size={13} />
-                    </span>
-                    <div className={styles.previewConvBody}>
-                      <div className={styles.previewConvTitleRow}>
-                        <span className={styles.previewConvTitle}>Indexing &amp; B-Tree structures</span>
-                      </div>
-                      <div className={styles.previewConvSubline}>
-                        <span className={styles.previewConvVideo}>
-                          <Film size={10} /> Database Systems…
-                        </span>
-                        <span className={styles.previewConvTime}>Yesterday</span>
-                      </div>
-                    </div>
-                  </div>
+              {/* Collapsed Conversations Section */}
+              <div className={styles.previewSidebarSection}>
+                <div className={styles.previewSectionHeader}>
+                  <ChevronRight size={12} className={styles.previewSectionChevron} />
+                  <span className={styles.previewSidebarSectionTitle}>CONVERSATIONS (6)</span>
                 </div>
               </div>
 
-              {/* Collapsed Video Library Header */}
-              <div className={styles.previewSidebarGroup}>
+              {/* Expanded Video Library Section */}
+              <div className={styles.previewSidebarSection}>
                 <div className={styles.previewLibraryHeaderRow}>
-                  <div className={styles.previewLibraryToggle}>
-                    <ChevronRight size={13} className={styles.previewLibraryChevron} />
-                    <span className={styles.previewSidebarSectionTitle}>VIDEO LIBRARY</span>
+                  <div className={styles.previewSectionHeader}>
+                    <ChevronDown size={12} className={styles.previewSectionChevron} />
+                    <span className={styles.previewSidebarSectionTitle}>VIDEO LIBRARY (4)</span>
                   </div>
                   <span className={styles.previewAddLink}>+ Add</span>
+                </div>
+
+                {/* Library search bar */}
+                <div className={styles.previewSearchWrap}>
+                  <Search size={11} className={styles.previewSearchIcon} />
+                  <span className={styles.previewSearchPlaceholder}>Search your library...</span>
+                </div>
+
+                {/* Status filter chips */}
+                <div className={styles.previewFilterRow}>
+                  <span className={`${styles.previewFilterChip} ${styles.previewFilterChipActive}`}>All</span>
+                  <span className={styles.previewFilterChip}>Ready</span>
+                  <span className={styles.previewFilterChip}>Processing</span>
+                  <span className={styles.previewFilterChip}>Failed</span>
+                </div>
+
+                {/* 4 Video Library Items */}
+                <div className={styles.previewVideoList}>
+                  {/* Item 1: Active video */}
+                  <div className={`${styles.previewVideoItem} ${styles.previewVideoItemActive}`}>
+                    <div className={`${styles.previewVideoThumb} ${styles.previewThumbAi}`}>
+                      <span className={styles.previewThumbPlay}>▶</span>
+                    </div>
+                    <div className={styles.previewVideoItemBody}>
+                      <span className={styles.previewVideoItemTitle}>AI Engineering Full Cou...</span>
+                      <div className={styles.previewVideoItemMeta}>
+                        <span className={styles.previewStatusReady}>
+                          <span className={styles.previewStatusDot} /> Ready
+                        </span>
+                        <span className={styles.previewChatCount}>💬 1 chat</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Item 2 */}
+                  <div className={styles.previewVideoItem}>
+                    <div className={`${styles.previewVideoThumb} ${styles.previewThumbData}`}>
+                      <span className={styles.previewThumbPlay}>▶</span>
+                    </div>
+                    <div className={styles.previewVideoItemBody}>
+                      <span className={styles.previewVideoItemTitle}>WALMART Data Engine...</span>
+                      <div className={styles.previewVideoItemMeta}>
+                        <span className={styles.previewStatusReady}>
+                          <span className={styles.previewStatusDot} /> Ready
+                        </span>
+                        <span className={styles.previewChatCount}>💬 2 chats</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Item 3 */}
+                  <div className={styles.previewVideoItem}>
+                    <div className={`${styles.previewVideoThumb} ${styles.previewThumbRank}`}>
+                      <span className={styles.previewThumbPlay}>▶</span>
+                    </div>
+                    <div className={styles.previewVideoItemBody}>
+                      <span className={styles.previewVideoItemTitle}>RANK 1 Fireball Super...</span>
+                      <div className={styles.previewVideoItemMeta}>
+                        <span className={styles.previewStatusReady}>
+                          <span className={styles.previewStatusDot} /> Ready
+                        </span>
+                        <span className={styles.previewChatCount}>💬 2 chats</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Item 4 */}
+                  <div className={styles.previewVideoItem}>
+                    <div className={`${styles.previewVideoThumb} ${styles.previewThumbSql}`}>
+                      <span className={styles.previewThumbPlay}>▶</span>
+                    </div>
+                    <div className={styles.previewVideoItemBody}>
+                      <span className={styles.previewVideoItemTitle}>SQL Full Course 2026-...</span>
+                      <div className={styles.previewVideoItemMeta}>
+                        <span className={styles.previewStatusReady}>
+                          <span className={styles.previewStatusDot} /> Ready
+                        </span>
+                        <span className={styles.previewChatCount}>💬 1 chat</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
               {/* User Profile Footer in Sidebar */}
               <div className={styles.previewSidebarUser}>
-                <div className={styles.previewUserAvatar}>D</div>
+                <div className={styles.previewUserAvatar}>A</div>
                 <div className={styles.previewUserInfo}>
-                  <span className={styles.previewUserName}>Demo User</span>
-                  <span className={styles.previewUserEmail}>user@example.com</span>
+                  <span className={styles.previewUserName}>Ash</span>
+                  <span className={styles.previewUserEmail}>ash09876ik@gmail.com</span>
                 </div>
-                <ChevronDown size={12} className={styles.previewUserChevron} />
+                <ChevronUp size={13} className={styles.previewUserChevron} />
               </div>
             </div>
 
             {/* 2. Preview Center Video Player Stage */}
             <div className={`${styles.previewVideoStage} ${previewMobileTab === 'video' ? styles.previewPanelActive : styles.previewPanelHidden}`}>
               <div className={styles.previewPlayerBox}>
-                <img
-                  src="https://images.unsplash.com/photo-1544383835-bda2bc66a55d?w=800&q=80"
-                  alt="Video Stage Thumbnail"
-                  className={styles.previewPlayerPoster}
-                />
+                {/* Header overlay inside video */}
+                <div className={styles.previewPlayerHeaderOverlay}>
+                  <div className={styles.previewChannelAvatar}>🌐</div>
+                  <div className={styles.previewChannelMeta}>
+                    <span className={styles.previewPlayerVideoTitle}>AI Engineering Full Course for Beginners</span>
+                    <span className={styles.previewChannelName}>Tech With Mala</span>
+                  </div>
+                </div>
+
+                {/* Banner illustration */}
+                <div className={styles.previewPlayerBanner}>
+                  <div className={styles.previewBannerContent}>
+                    <div className={styles.previewBannerHeading}>AI ENGINEERING</div>
+                    <div className={styles.previewBannerSub}>MASTER COURSE</div>
+                    <div className={styles.previewBannerBadges}>
+                      <span>LLMS</span>
+                      <span className={styles.bannerArrow}>→</span>
+                      <span>RAG</span>
+                      <span className={styles.bannerArrow}>→</span>
+                      <span>AGENTS</span>
+                    </div>
+                  </div>
+                  <div className={styles.previewBannerAiGraphic} aria-hidden="true">
+                    <div className={styles.previewBrainGlow} />
+                  </div>
+                </div>
+
+                {/* Center YouTube Play Button */}
                 <div className={styles.previewPlayerOverlay}>
                   <div className={styles.previewBigPlayBtn}>▶</div>
                 </div>
-                <div className={styles.previewPlayerTopBar}>
-                  <span>SQL Full Course 2026–2027 | Beginner to Advanced</span>
-                </div>
-                <div className={styles.previewPlayerBottomPill}>
-                  <span>Watch on YouTube</span>
+
+                {/* Bottom Overlay Link & YouTube Pill */}
+                <div className={styles.previewPlayerBottomOverlay}>
+                  <div className={styles.previewPlayerLinkIcon} title="Video Link">🔗</div>
+                  <div className={styles.previewPlayerYtBadge}>
+                    <span>Watch on</span>
+                    <span className={styles.previewYtLogo}>▶ YouTube</span>
+                  </div>
                 </div>
               </div>
 
               <div className={styles.previewVideoDetails}>
                 <div className={styles.previewVideoTitleRow}>
                   <h4 className={styles.previewVideoMainTitle}>
-                    SQL Full Course 2026–2027 | Beginner to Advanced | Complete SQL Tutorial
+                    AI Engineering Full Course for Beginners | LLMs, RAG, LangChain, Agents &amp; GenAI
                   </h4>
                   <span className={styles.previewReadyTag}>● Ready</span>
                 </div>
                 <div className={styles.previewVideoActions}>
                   <span className={styles.previewActionBtn}>
-                    <ExternalLink size={12} /> Watch on YouTube
+                    <ExternalLink size={11} /> Watch on YouTube
                   </span>
                   <span className={styles.previewActionBtn}>
                     Copy Link
                   </span>
                   <span className={styles.previewPlaybackIssuesLink}>
                     Playback issues?
+                  </span>
+                </div>
+                <div className={styles.previewCollapsePlayerRow}>
+                  <span className={styles.previewCollapsePlayerBtn}>
+                    <Minimize2 size={11} /> Collapse Player
                   </span>
                 </div>
                 <div className={styles.previewMobileResearchSwitch}>
@@ -364,49 +432,65 @@ export default function LandingPage() {
               </div>
 
               <div className={styles.previewChatFeed}>
-                <div className={styles.previewQuestion}>
-                  <span>Explain how GROUP BY and HAVING clauses filter aggregated records.</span>
+                {/* Previous Turn Excerpt */}
+                <div className={styles.previewAssistantTurn}>
+                  <p className={styles.previewAnswerText}>
+                    <strong>Start chatting</strong> – Send user messages to the chain; the LLM replies, and the conversation is recorded in memory for future turns.
+                  </p>
+                  <p className={styles.previewAnswerText}>
+                    These steps collectively allow the chatbot to maintain context across interactions and generate coherent, context-aware responses.
+                  </p>
+                  <div className={styles.previewActionToolbar}>
+                    <span className={styles.previewToolbarIconBtn} title="Copy">
+                      <Copy size={12} />
+                    </span>
+                    <span className={styles.previewToolbarIconBtn} title="Helpful">
+                      <ThumbsUp size={12} />
+                    </span>
+                    <span className={styles.previewToolbarIconBtn} title="Not helpful">
+                      <ThumbsDown size={12} />
+                    </span>
+                  </div>
                 </div>
 
-                <div className={styles.previewAnswerCard}>
-                  <div className={styles.previewAiAvatar}>YG</div>
-                  <div className={styles.previewAnswerBody}>
-                    <p style={{ margin: 0, marginBottom: '8px' }}>
-                      In SQL, the <code>WHERE</code> clause filters rows before aggregation occurs, whereas the <code>HAVING</code> clause filters the resulting groups created by <code>GROUP BY</code>. For example, <code>HAVING COUNT(*) &gt; 5</code> restricts output strictly to groups with more than 5 rows.
-                    </p>
-                    <div className={styles.previewSourcesRow}>
-                      <span className={styles.previewSourcesLabel}>Grounded Citations:</span>
-                      <span className={styles.previewSourceChip}>
-                        ⏱ 14:22 <ExternalLink size={10} />
-                      </span>
-                      <span className={styles.previewSourceChip}>
-                        ⏱ 28:45 <ExternalLink size={10} />
-                      </span>
-                      <span className={styles.previewSourceChip}>
-                        ⏱ 42:10 <ExternalLink size={10} />
-                      </span>
+                {/* Grounded Citations with Timestamp Chips */}
+                <div className={styles.previewCitationsBlock}>
+                  <div className={styles.previewCitationsHeading}>CITATIONS:</div>
+                  <div className={styles.previewCitationsList}>
+                    <div className={styles.previewCitationChip}>
+                      <span className={styles.previewChipTime}>⏱ 04:52:12 - 04:53:08</span>
+                      <span className={styles.previewChipSnippet}>And then here we ini...</span>
                     </div>
-                    {/* Copy and feedback actions */}
-                    <div className={styles.previewMessageActions}>
-                      <span className={styles.previewActionBtn}>
-                        <Copy size={11} /> Copy
-                      </span>
-                      <span className={styles.previewActionBtn}>
-                        <ThumbsUp size={11} />
-                      </span>
-                      <span className={styles.previewActionBtn}>
-                        <ThumbsDown size={11} />
-                      </span>
+                    <div className={styles.previewCitationChip}>
+                      <span className={styles.previewChipTime}>⏱ 05:34:52 - 05:35:45</span>
+                      <span className={styles.previewChipSnippet}>somebody and you int...</span>
+                    </div>
+                    <div className={styles.previewCitationChip}>
+                      <span className={styles.previewChipTime}>⏱ 05:48:23 - 05:49:23</span>
+                      <span className={styles.previewChipSnippet}>we installed all the...</span>
                     </div>
                   </div>
                 </div>
+
+                {/* User Message on Right */}
+                <div className={styles.previewUserMessage}>
+                  <span>How can AI agents use tools to perform tasks?</span>
+                </div>
+
+                {/* Assistant Flowing Response */}
+                <div className={styles.previewAssistantTurn}>
+                  <p className={styles.previewAnswerText}>
+                    AI agents perform tasks by calling external utilities called tools. A tool is a LangChain-based utility that can interact with outside systems—such as web crawlers, search engines, or browser automation tools. When you define a task, you pass a list of tools to the task constructor. The agent assigned to that task can then invoke those tools to execute the required actions (e.g., crawl a web page, scrape a site, or download an email). The crew framework orchestrates the agents, tasks, and tools; when the crew is started, each agent runs its task and uses the specified tools to carry out the work.
+                  </p>
+                </div>
               </div>
 
+              {/* Composer at Bottom */}
               <div className={styles.previewComposer}>
                 <div className={styles.previewComposerBar}>
-                  <span>Ask anything about this video…</span>
+                  <span className={styles.previewComposerPlaceholder}>Ask anything about this video...</span>
                   <div className={styles.previewSendBtn}>
-                    <ArrowRight size={13} />
+                    <ArrowUp size={13} />
                   </div>
                 </div>
               </div>
