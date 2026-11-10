@@ -12,7 +12,7 @@ export function VideoLibraryProvider({ children }) {
   const [libraryStatus, setLibraryStatus] = useState('idle'); // 'idle' | 'loading' | 'ready' | 'error'
   const [libraryError, setLibraryError] = useState(null);
 
-  const fetchVideos = useCallback(async () => {
+  const fetchVideos = useCallback(async (isBackground = false) => {
     if (!isAuthenticated) {
       setVideos([]);
       setSelectedVideoId(null);
@@ -20,7 +20,9 @@ export function VideoLibraryProvider({ children }) {
       return;
     }
 
-    setLibraryStatus('loading');
+    if (!isBackground) {
+      setLibraryStatus('loading');
+    }
     setLibraryError(null);
     try {
       const data = await listVideos();
@@ -37,7 +39,9 @@ export function VideoLibraryProvider({ children }) {
         return null;
       });
     } catch (err) {
-      setLibraryStatus('error');
+      if (!isBackground) {
+        setLibraryStatus('error');
+      }
       setLibraryError(err?.message || 'Failed to load videos.');
     }
   }, [isAuthenticated]);
@@ -47,10 +51,13 @@ export function VideoLibraryProvider({ children }) {
   }, [fetchVideos]);
 
   // Poll the library while any video is processing so ready/failed
-  // states appear without a manual reload.
+  // states appear without a manual reload. Use background fetch to
+  // avoid resetting libraryStatus to 'loading' and causing workspace flicker.
   useEffect(() => {
     if (!videos.some((v) => v.status === VIDEO_STATUS.PROCESSING)) return undefined;
-    const interval = setInterval(fetchVideos, 5000);
+    const interval = setInterval(() => {
+      fetchVideos(true);
+    }, 5000);
     return () => clearInterval(interval);
   }, [videos, fetchVideos]);
 

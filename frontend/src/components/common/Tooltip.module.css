@@ -31,4 +31,5 @@
   opacity: 1;
   visibility: visible;
   transform: translateY(-50%) translateX(2px);
+  transition-delay: 120ms;
 }

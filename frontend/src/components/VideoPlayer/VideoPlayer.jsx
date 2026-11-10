@@ -1,13 +1,14 @@
 import React, { forwardRef, useImperativeHandle, useRef, useState } from 'react';
-import { AlertTriangle, Check, Copy, ExternalLink, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Check, Copy, ExternalLink, RefreshCw, Minimize2, Maximize2 } from 'lucide-react';
 import { VIDEO_STATUS } from '../../utils/constants';
 import { sanitizeErrorMessage, formatProcessingStartedAt } from '../../utils/formatters';
 import Spinner from '../common/Spinner';
 import Skeleton from '../common/Skeleton';
+import Tooltip from '../common/Tooltip';
 import styles from './VideoPlayer.module.css';
 
 const VideoPlayer = forwardRef(function VideoPlayer(
-  { video, reprocessVideo, onSwitchToResearch },
+  { video, reprocessVideo, onSwitchToResearch, isCollapsed = false, onToggleCollapse },
   ref
 ) {
   const iframeRef = useRef(null);
@@ -80,6 +81,65 @@ const VideoPlayer = forwardRef(function VideoPlayer(
     [VIDEO_STATUS.PROCESSING]: 'Processing…',
     [VIDEO_STATUS.FAILED]: 'Failed',
   };
+
+  if (isCollapsed) {
+    return (
+      <div className={styles.collapsedRail} data-testid="video-player-collapsed-rail">
+        <Tooltip content="Expand video player">
+          <button
+            type="button"
+            className={styles.railExpandBtn}
+            onClick={onToggleCollapse}
+            aria-label="Expand video player"
+            data-testid="expand-video-player-btn"
+          >
+            <Maximize2 size={15} />
+          </button>
+        </Tooltip>
+
+        <div className={styles.railDivider} />
+
+        <Tooltip content={`Status: ${statusLabels[video.status] || video.status}`}>
+          <div className={styles.railStatusWrap}>
+            <span
+              className={styles.statusDot}
+              style={{ background: statusColors[video.status] || 'var(--text-500)' }}
+            />
+          </div>
+        </Tooltip>
+
+        <Tooltip content={video.title || 'Untitled video'}>
+          <div
+            className={styles.railTitleWrap}
+            onClick={onToggleCollapse}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') onToggleCollapse?.();
+            }}
+          >
+            <span className={styles.railVerticalTitle}>
+              {video.title || 'Untitled video'}
+            </span>
+          </div>
+        </Tooltip>
+
+        <div className={styles.railFooter}>
+          <Tooltip content="Watch on YouTube">
+            <a
+              href={externalWatchUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.railExternalBtn}
+              aria-label="Watch on YouTube"
+            >
+              <ExternalLink size={13} />
+            </a>
+          </Tooltip>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.playerStage} data-testid="video-player-stage">
@@ -204,6 +264,20 @@ const VideoPlayer = forwardRef(function VideoPlayer(
           >
             {showRestrictedNotice ? 'Hide embed help' : 'Playback issues?'}
           </button>
+
+          {onToggleCollapse && (
+            <button
+              type="button"
+              className={`${styles.actionBtn} ${styles.collapseBtn}`}
+              onClick={onToggleCollapse}
+              data-testid="collapse-video-player-button"
+              title="Collapse video player to expand AI research studio"
+              aria-label="Collapse video player"
+            >
+              <Minimize2 size={13} />
+              <span>Collapse Player</span>
+            </button>
+          )}
         </div>
 
         {/* Fallback Notice for Restricted Embeds (Error 150/101) */}

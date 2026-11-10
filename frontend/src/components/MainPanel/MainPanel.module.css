@@ -146,7 +146,7 @@
   overflow: hidden;
 }
 
-/* Left Stage: 38% Video Player Stage */
+/* Left Stage: 38% Video Player Stage (collapsible to 48px rail) */
 .videoStageWrap {
   flex: 0 0 38%;
   min-width: 360px;
@@ -157,6 +157,16 @@
   height: 100%;
   overflow: hidden;
   background: var(--bg-surface-1, #181818);
+  transition: flex 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+    min-width 0.25s ease,
+    max-width 0.25s ease;
+}
+
+.videoStageCollapsed {
+  flex: 0 0 48px !important;
+  min-width: 48px !important;
+  max-width: 48px !important;
+  overflow: visible !important;
 }
 
 /* Right Stage: 62% AI Research Studio */
@@ -170,6 +180,7 @@
   min-height: 0;
   overflow: hidden;
   background: var(--bg-canvas, #0f0f0f);
+  transition: flex 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Studio Header */
@@ -190,19 +201,52 @@
   color: var(--text-primary, #f1f1f1);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  min-width: 0;
 }
 
-.groundingTag {
-  background: var(--accent-blue-bg, rgba(62, 166, 255, 0.12));
-  color: var(--accent-blue, #3ea6ff);
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 7px;
-  border-radius: 12px;
+.restoreVideoPill {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  background: var(--bg-surface-2, #212121);
+  border: 1px solid var(--border-default, #303030);
+  border-radius: var(--radius-pill, 9999px);
+  padding: 3px 10px;
+  font-size: 11px;
+  color: var(--text-primary, #f1f1f1);
+  cursor: pointer;
+  transition: all var(--duration-fast, 150ms) ease;
+  max-width: 320px;
+  white-space: nowrap;
+}
+
+.restoreVideoPill:hover,
+.restoreVideoPill:focus-visible {
+  background: var(--bg-surface-3, #272727);
+  border-color: var(--border-focus, #3ea6ff);
+  outline: none;
+}
+
+.restoreVideoIcon {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.restoreVideoTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  color: var(--text-secondary, #aaaaaa);
+  max-width: 180px;
+}
+
+.restoreVideoAction {
+  color: var(--accent-blue, #3ea6ff);
+  font-weight: 600;
+  font-size: 10.5px;
+  flex-shrink: 0;
 }
 
 .threadCount {
@@ -512,38 +556,50 @@
   align-items: center;
 }
 
-.messageActions {
+.messageToolbar {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 2px;
+  gap: 4px;
+  margin-top: 6px;
+  padding-top: 4px;
 }
 
-.actionBtn {
+.toolbarBtn {
   background: transparent;
-  border: 1px solid var(--border-default, #303030);
+  border: 1px solid transparent;
   border-radius: var(--radius-xs, 4px);
   color: var(--text-secondary, #aaaaaa);
-  padding: 4px 8px;
-  font-size: 11px;
+  padding: 6px;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
   cursor: pointer;
   transition: all var(--duration-fast, 150ms) ease;
+  line-height: 1;
 }
 
-.actionBtn:hover,
-.actionBtn:focus-visible {
+.toolbarBtn:hover,
+.toolbarBtn:focus-visible {
   background: var(--bg-surface-2, #212121);
   color: var(--text-primary, #f1f1f1);
-  border-color: var(--border-focus, #3ea6ff);
+  border-color: var(--border-default, #303030);
+  outline: none;
 }
 
-.actionBtnActive {
-  background: var(--bg-surface-2, #212121);
-  color: var(--accent-blue, #3ea6ff);
-  border-color: var(--accent-blue, #3ea6ff);
+.toolbarBtnActiveLike {
+  color: var(--success-400, #4ade80) !important;
+  background: rgba(74, 222, 128, 0.12) !important;
+  border-color: rgba(74, 222, 128, 0.25) !important;
+}
+
+.toolbarBtnActiveDislike {
+  color: var(--danger-600, #dc2626) !important;
+  background: rgba(220, 38, 38, 0.12) !important;
+  border-color: rgba(220, 38, 38, 0.25) !important;
+}
+
+.checkIcon {
+  color: var(--success-400, #4ade80);
 }
 
 .sourcesList {
@@ -731,6 +787,11 @@
   scrollbar-width: none;
   -ms-overflow-style: none;
   font-family: inherit;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .composerInput::-webkit-scrollbar {

@@ -20,10 +20,15 @@
   flex-shrink: 0;
 }
 
-/* Collapsed Mode (64px Icon Bar) */
+/* Collapsed Mode (64px Icon Bar) — allow tooltips to overflow without clipping */
 .sidebarCollapsed {
   width: 64px;
   min-width: 64px;
+  overflow: visible;
+}
+
+.sidebarCollapsed .scrollableBody {
+  overflow: visible;
 }
 
 /* 1. Brand Row */
@@ -355,7 +360,31 @@
 }
 
 /* 4. Lists & Item Presentation */
-.conversationListWrap,
+.conversationListWrap {
+  display: flex;
+  flex-direction: column;
+  max-height: 280px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 2px;
+}
+
+.conversationListWrap::-webkit-scrollbar,
+.listWrap::-webkit-scrollbar {
+  width: 4px;
+}
+
+.conversationListWrap::-webkit-scrollbar-thumb,
+.listWrap::-webkit-scrollbar-thumb {
+  background: var(--border-default, #303030);
+  border-radius: 4px;
+}
+
+.conversationListWrap::-webkit-scrollbar-thumb:hover,
+.listWrap::-webkit-scrollbar-thumb:hover {
+  background: var(--border-focus, #3ea6ff);
+}
+
 .listWrap {
   display: flex;
   flex-direction: column;
@@ -1098,6 +1127,7 @@
   width: 100%;
 }
 
+.sectionToggleBtn,
 .libraryToggleBtn {
   background: transparent;
   border: none;
@@ -1112,10 +1142,12 @@
   text-align: left;
 }
 
+.sectionToggleBtn:hover .sectionTitle,
 .libraryToggleBtn:hover .sectionTitle {
   color: #ffffff;
 }
 
+.sectionChevron,
 .libraryChevron {
   display: inline-flex;
   align-items: center;
@@ -1124,12 +1156,20 @@
   transition: transform 0.15s ease, color 0.15s ease;
 }
 
+.sectionToggleBtn:hover .sectionChevron,
 .libraryToggleBtn:hover .libraryChevron {
   color: var(--text-primary, #f1f1f1);
 }
 
+.sectionChevronExpanded,
 .libraryChevronExpanded {
   transform: rotate(90deg);
+}
+
+.conversationsExpandedContent,
+.libraryExpandedContent {
+  display: flex;
+  flex-direction: column;
 }
 
 .conversationSearchRow {

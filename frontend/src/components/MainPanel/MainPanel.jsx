@@ -111,6 +111,13 @@ function QAComposer({ videoId, hasMessages }) {
           className={styles.composerInput}
           aria-label="Ask a question about this video"
           data-testid="question-input"
+          spellCheck={false}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          data-gramm="false"
+          data-gramm_editor="false"
+          data-enable-grammarly="false"
         />
         <button
           type="button"
@@ -159,6 +166,27 @@ export default function MainPanel() {
   const threadEndRef = useRef(null);
   const playerRef = useRef(null);
   const [mobileTab, setMobileTab] = useState("video"); // 'video' | 'research'
+
+  // Video player collapse/expand state (persisted in localStorage)
+  const [isVideoCollapsed, setIsVideoCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('ytgenius_video_player_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleVideoCollapsed = () => {
+    setIsVideoCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('ytgenius_video_player_collapsed', String(next));
+      } catch (_err) {
+        // Ignore storage errors in restricted contexts
+      }
+      return next;
+    });
+  };
 
   // Derive thread using the same key logic as ChatContext
   const activeConvKey = activeConversationId
@@ -225,8 +253,8 @@ export default function MainPanel() {
         </span>
       </div>
 
-      {/* Workspace Loading Skeletons */}
-      {libraryStatus === "loading" && (
+      {/* Workspace Loading Skeletons (initial library load only, never while video workspace is mounted) */}
+      {libraryStatus === "loading" && !selectedVideo && (
         <div className={styles.workspaceLoadingSkeleton} aria-label="Loading workspace">
           <div className={styles.dualPanelSplit}>
             <div className={styles.videoStageWrap}>
@@ -304,9 +332,11 @@ export default function MainPanel() {
 
           {/* 38% / 62% Dual-Panel Stage */}
           <div className={styles.dualPanelSplit}>
-            {/* Left Stage: 38% Video Player Stage */}
+            {/* Left Stage: 38% Video Player Stage (collapsible to 48px rail) */}
             <div
               className={`${styles.videoStageWrap} ${
+                isVideoCollapsed ? styles.videoStageCollapsed : ''
+              } ${
                 mobileTab === "video" ? styles.mobilePanelActive : styles.mobilePanelHidden
               }`}
             >
@@ -315,10 +345,12 @@ export default function MainPanel() {
                 video={selectedVideo}
                 reprocessVideo={reprocessVideo}
                 onSwitchToResearch={() => setMobileTab("research")}
+                isCollapsed={isVideoCollapsed}
+                onToggleCollapse={toggleVideoCollapsed}
               />
             </div>
 
-            {/* Right Stage: 62% AI Research Studio */}
+            {/* Right Stage: 62% AI Research Studio (expands to 100% when player is collapsed) */}
             <div
               className={`${styles.researchStudioWrap} ${
                 mobileTab === "research" ? styles.mobilePanelActive : styles.mobilePanelHidden
@@ -339,6 +371,22 @@ export default function MainPanel() {
                   <div className={styles.studioHeader}>
                     <div className={styles.studioHeaderTitle}>
                       <span>AI Research Studio</span>
+                      {isVideoCollapsed && (
+                        <button
+                          type="button"
+                          className={styles.restoreVideoPill}
+                          onClick={toggleVideoCollapsed}
+                          title="Expand video player"
+                          data-testid="expand-video-player-pill"
+                          aria-label="Expand video player"
+                        >
+                          <span className={styles.restoreVideoIcon}>🎬</span>
+                          <span className={styles.restoreVideoTitle}>
+                            {selectedVideo.title || "Video"}
+                          </span>
+                          <span className={styles.restoreVideoAction}>Expand ↗</span>
+                        </button>
+                      )}
                     </div>
 
                     <div className={styles.studioHeaderActions}>

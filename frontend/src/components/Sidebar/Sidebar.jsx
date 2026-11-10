@@ -60,8 +60,50 @@ export default function Sidebar() {
   const [videoQuery, setVideoQuery] = useState('');
   const [filter, setFilter] = useState('all');
 
-  // Video Library is collapsed by default per specification
-  const [isLibraryExpanded, setIsLibraryExpanded] = useState(false);
+  // Conversations is collapsed by default per specification (independent state, persisted in localStorage)
+  const [isConversationsExpanded, setIsConversationsExpanded] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ytgenius_sidebar_convs_expanded');
+      return saved === 'true'; // false by default
+    } catch {
+      return false;
+    }
+  });
+
+  // Video Library is expanded by default per specification (independent state, persisted in localStorage)
+  const [isLibraryExpanded, setIsLibraryExpanded] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ytgenius_sidebar_library_expanded');
+      return saved !== 'false'; // true by default
+    } catch {
+      return true;
+    }
+  });
+
+  const toggleConversations = () => {
+    setIsConversationsExpanded((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('ytgenius_sidebar_convs_expanded', String(next));
+      } catch (_err) {
+        // Ignore storage errors in restricted contexts
+      }
+      return next;
+    });
+  };
+
+  const toggleLibrary = () => {
+    setIsLibraryExpanded((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('ytgenius_sidebar_library_expanded', String(next));
+      } catch (_err) {
+        // Ignore storage errors in restricted contexts
+      }
+      return next;
+    });
+  };
+
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   // Fast lookup for video title by video_id
@@ -200,15 +242,17 @@ export default function Sidebar() {
                 </div>
               </div>
 
-              <button
-                type="button"
-                className={styles.collapseButton}
-                onClick={toggleSidebarCollapse}
-                aria-label="Collapse sidebar"
-                title="Collapse sidebar"
-              >
-                ◀
-              </button>
+              <Tooltip content="Collapse sidebar">
+                <button
+                  type="button"
+                  className={styles.collapseButton}
+                  onClick={toggleSidebarCollapse}
+                  aria-label="Collapse sidebar"
+                  title="Collapse sidebar"
+                >
+                  ◀
+                </button>
+              </Tooltip>
             </>
           )}
 
@@ -302,85 +346,108 @@ export default function Sidebar() {
             </div>
           ) : (
             <>
-              {/* ---- A. Conversations Section (Flat Recent List) ---- */}
+              {/* ---- A. Conversations Section (Collapsible, Collapsed by Default) ---- */}
               <div className={styles.sectionHeader}>
-                <span className={styles.sectionTitle}>Conversations</span>
+                <button
+                  type="button"
+                  className={styles.sectionToggleBtn}
+                  onClick={toggleConversations}
+                  aria-expanded={isConversationsExpanded}
+                  aria-label="Toggle Conversations section"
+                  data-testid="toggle-conversations-button"
+                >
+                  <span
+                    className={`${styles.sectionChevron} ${
+                      isConversationsExpanded ? styles.sectionChevronExpanded : ''
+                    }`}
+                  >
+                    <ChevronRight size={14} />
+                  </span>
+                  <span className={styles.sectionTitle}>Conversations</span>
+                  {conversations.length > 0 && (
+                    <span className={styles.itemCount}>({conversations.length})</span>
+                  )}
+                </button>
               </div>
 
-              {conversations.length > 4 && (
-                <div className={styles.conversationSearchRow}>
-                  <input
-                    type="search"
-                    placeholder="Search conversations…"
-                    value={convQuery}
-                    onChange={(e) => setConvQuery(e.target.value)}
-                    className={styles.searchInput}
-                    aria-label="Search conversations"
-                    data-testid="conversation-search-input"
-                  />
+              {isConversationsExpanded && (
+                <div className={styles.conversationsExpandedContent} data-testid="conversations-content">
+                  {conversations.length > 3 && (
+                    <div className={styles.conversationSearchRow}>
+                      <input
+                        type="search"
+                        placeholder="Search conversations…"
+                        value={convQuery}
+                        onChange={(e) => setConvQuery(e.target.value)}
+                        className={styles.searchInput}
+                        aria-label="Search conversations"
+                        data-testid="conversation-search-input"
+                      />
+                    </div>
+                  )}
+
+                  <div className={styles.conversationListWrap}>
+                    {conversationsStatus === 'loading' && (
+                      <div className={styles.skeletonList}>
+                        <Skeleton height={38} borderRadius={6} style={{ marginBottom: 6 }} />
+                        <Skeleton height={38} borderRadius={6} style={{ marginBottom: 6 }} />
+                        <Skeleton height={38} borderRadius={6} style={{ marginBottom: 6 }} />
+                      </div>
+                    )}
+
+                    {conversationsStatus === 'error' && (
+                      <div className={styles.stateBlock}>
+                        <p className={styles.stateError}>{conversationsError}</p>
+                        <button
+                          type="button"
+                          className={styles.retryButton}
+                          onClick={loadConversations}
+                        >
+                          Try again
+                        </button>
+                      </div>
+                    )}
+
+                    {conversationsStatus === 'ready' && conversations.length === 0 && (
+                      <div className={styles.stateBlock}>
+                        <p className={styles.emptyBody}>
+                          No conversations yet. Start a new chat to get started.
+                        </p>
+                      </div>
+                    )}
+
+                    {conversations.length > 0 && filteredConversations.length === 0 && (
+                      <div className={styles.stateBlock}>
+                        <p className={styles.emptyBody}>No conversations match search.</p>
+                      </div>
+                    )}
+
+                    {filteredConversations.length > 0 && (
+                      <ul className={styles.list} data-testid="conversations-flat-list">
+                        {filteredConversations.map((conv) => (
+                          <ConversationItem
+                            key={conv.id}
+                            conversation={conv}
+                            videoTitle={conv.video_title || videoMap.get(conv.video_id)}
+                            isActive={conv.id === activeConversationId}
+                            onSelect={() => handleSelectConversation(conv.id)}
+                            isCollapsed={false}
+                          />
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 </div>
               )}
 
-              <div className={styles.conversationListWrap}>
-                {conversationsStatus === 'loading' && (
-                  <div className={styles.skeletonList}>
-                    <Skeleton height={38} borderRadius={6} style={{ marginBottom: 6 }} />
-                    <Skeleton height={38} borderRadius={6} style={{ marginBottom: 6 }} />
-                    <Skeleton height={38} borderRadius={6} style={{ marginBottom: 6 }} />
-                  </div>
-                )}
-
-                {conversationsStatus === 'error' && (
-                  <div className={styles.stateBlock}>
-                    <p className={styles.stateError}>{conversationsError}</p>
-                    <button
-                      type="button"
-                      className={styles.retryButton}
-                      onClick={loadConversations}
-                    >
-                      Try again
-                    </button>
-                  </div>
-                )}
-
-                {conversationsStatus === 'ready' && conversations.length === 0 && (
-                  <div className={styles.stateBlock}>
-                    <p className={styles.emptyBody}>
-                      No conversations yet. Start a new chat to get started.
-                    </p>
-                  </div>
-                )}
-
-                {conversations.length > 0 && filteredConversations.length === 0 && (
-                  <div className={styles.stateBlock}>
-                    <p className={styles.emptyBody}>No conversations match search.</p>
-                  </div>
-                )}
-
-                {filteredConversations.length > 0 && (
-                  <ul className={styles.list} data-testid="conversations-flat-list">
-                    {filteredConversations.map((conv) => (
-                      <ConversationItem
-                        key={conv.id}
-                        conversation={conv}
-                        videoTitle={conv.video_title || videoMap.get(conv.video_id)}
-                        isActive={conv.id === activeConversationId}
-                        onSelect={() => handleSelectConversation(conv.id)}
-                        isCollapsed={false}
-                      />
-                    ))}
-                  </ul>
-                )}
-              </div>
-
               <div className={styles.sectionDivider} />
 
-              {/* ---- B. Video Library Section (Collapsible, Collapsed by Default) ---- */}
+              {/* ---- B. Video Library Section (Collapsible, Expanded by Default) ---- */}
               <div className={styles.sectionHeader}>
                 <button
                   type="button"
                   className={styles.libraryToggleBtn}
-                  onClick={() => setIsLibraryExpanded((prev) => !prev)}
+                  onClick={toggleLibrary}
                   aria-expanded={isLibraryExpanded}
                   aria-label="Toggle Video Library section"
                   data-testid="toggle-video-library-button"
@@ -393,6 +460,9 @@ export default function Sidebar() {
                     <ChevronRight size={14} />
                   </span>
                   <span className={styles.sectionTitle}>Video Library</span>
+                  {videos.length > 0 && (
+                    <span className={styles.itemCount}>({videos.length})</span>
+                  )}
                 </button>
 
                 <button
