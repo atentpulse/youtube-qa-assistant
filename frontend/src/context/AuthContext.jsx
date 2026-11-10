@@ -1,5 +1,12 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { getCurrentUser, loginWithCredentials, registerWithCredentials, refreshToken, logoutUser } from '../api/auth';
+import {
+  getCurrentUser,
+  loginWithCredentials,
+  registerWithCredentials,
+  refreshToken,
+  logoutUser,
+  exchangeOAuthCode,
+} from '../api/auth';
 import { apiClient } from '../api/client';
 import {
   getToken,
@@ -149,6 +156,28 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  /**
+   * Centralized OAuth exchange and session establishment handler:
+   * 1. Returns active user immediately if already authenticated.
+   * 2. Exchanges authorization code using deduplicated exchangeOAuthCode.
+   * 3. Stores tokens and loads the user profile via GET /auth/me.
+   */
+  const loginWithOAuthCode = useCallback(async (code) => {
+    if (authStatus === 'authenticated' && user) {
+      return user;
+    }
+
+    const data = await exchangeOAuthCode(code);
+    const accessToken = data?.access_token || data?.token;
+    const refreshToken = data?.refresh_token;
+
+    if (!accessToken) {
+      throw new Error('No access token returned by authentication server.');
+    }
+
+    return await completeOAuthLogin(accessToken, refreshToken);
+  }, [authStatus, user, completeOAuthLogin]);
+
   const login = useCallback(async ({ email, password }) => {
     const res = await loginWithCredentials({ email, password });
     const rawToken = res?.access_token || res?.token;
@@ -224,6 +253,7 @@ export function AuthProvider({ children }) {
     sessionMessage,
     clearSessionMessage,
     completeOAuthLogin,
+    loginWithOAuthCode,
     login,
     register,
     refreshSession,

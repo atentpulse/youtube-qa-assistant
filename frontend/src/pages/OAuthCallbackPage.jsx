@@ -1,51 +1,84 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { exchangeOAuthCode } from '../api/auth';
 import { useAuth } from '../context/AuthContext';
+import { getToken } from '../utils/tokenStorage';
 import Spinner from '../components/common/Spinner';
 import styles from './AuthPages.module.css';
+
+// Module-level tracking to coordinate across React StrictMode remounts
+let lastHandledCode = null;
 
 export default function OAuthCallbackPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { completeOAuthLogin } = useAuth();
+  const { isAuthenticated, loginWithOAuthCode } = useAuth();
   const [errorMessage, setErrorMessage] = useState(null);
 
+  // Capture code and error query parameters
+  const rawCode = searchParams.get('code');
+  const rawError = searchParams.get('error');
+
+  if (rawCode) {
+    lastHandledCode = rawCode;
+  }
+
+  const codeRef = useRef(rawCode || lastHandledCode);
+  const errorRef = useRef(rawError);
+  const isStartedRef = useRef(false);
+
+  // Requirement 6: Remove the authorization code from browser history immediately after capturing it
   useEffect(() => {
-    let cancelled = false;
+    if (searchParams.has('code') || searchParams.has('error')) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [searchParams]);
 
-    async function handleCallback() {
-      const error = searchParams.get('error');
-      if (error) {
-        if (!cancelled) {
-          navigate(`/login?error=${encodeURIComponent(error)}`, { replace: true });
-        }
-        return;
-      }
+  useEffect(() => {
+    // 1. If already authenticated, redirect straight to app workspace
+    if (isAuthenticated) {
+      navigate('/app', { replace: true });
+      return;
+    }
 
-      const code = searchParams.get('code');
-      if (!code) {
-        if (!cancelled) {
-          setErrorMessage('No authorization code found in callback URL.');
-        }
-        return;
-      }
+    // 2. If Google returned an error query parameter
+    const oauthError = errorRef.current;
+    if (oauthError) {
+      navigate(`/login?error=${encodeURIComponent(oauthError)}`, { replace: true });
+      return;
+    }
 
+    // 3. Check for authorization code
+    const code = codeRef.current;
+    if (!code) {
+      setErrorMessage('No authorization code found in callback URL.');
+      return;
+    }
+
+    // 4. Concurrency Guard: Only initiate processing once per component instance
+    if (isStartedRef.current) {
+      return;
+    }
+    isStartedRef.current = true;
+
+    let isMounted = true;
+
+    async function processCallback() {
       try {
-        const data = await exchangeOAuthCode(code);
-        const accessToken = data?.access_token || data?.token;
-        const refreshToken = data?.refresh_token;
-
-        if (!accessToken) {
-          throw new Error('No access token returned by authentication server.');
-        }
-
-        await completeOAuthLogin(accessToken, refreshToken);
-        if (!cancelled) {
+        await loginWithOAuthCode(code);
+        if (isMounted) {
           navigate('/app', { replace: true });
         }
       } catch (err) {
-        if (!cancelled) {
+        // Requirement 8: Do not treat an already-authenticated session as a failure
+        // merely because a duplicate/concurrent request was rejected.
+        if (isAuthenticated || getToken()) {
+          if (isMounted) {
+            navigate('/app', { replace: true });
+          }
+          return;
+        }
+
+        if (isMounted) {
           setErrorMessage(
             err?.message || 'Failed to complete sign in. Please try again.'
           );
@@ -53,12 +86,20 @@ export default function OAuthCallbackPage() {
       }
     }
 
-    handleCallback();
+    processCallback();
 
     return () => {
-      cancelled = true;
+      isMounted = false;
     };
-  }, [searchParams, completeOAuthLogin, navigate]);
+  }, [isAuthenticated, loginWithOAuthCode, navigate]);
+
+  const handleBackAction = () => {
+    if (isAuthenticated || getToken()) {
+      navigate('/app', { replace: true });
+    } else {
+      navigate('/login', { replace: true });
+    }
+  };
 
   if (errorMessage) {
     return (
@@ -76,9 +117,9 @@ export default function OAuthCallbackPage() {
           <button
             type="button"
             className={styles.submitButton}
-            onClick={() => navigate('/login', { replace: true })}
+            onClick={handleBackAction}
           >
-            Back to Sign In
+            {isAuthenticated || getToken() ? 'Go to Workspace' : 'Back to Sign In'}
           </button>
         </div>
       </div>
