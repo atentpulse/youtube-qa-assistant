@@ -79,6 +79,9 @@ desktop.ini
 *.db
 *.sqlite
 *.sqlite3
+*.index
+data/
+scratch/
 
 # ==============================
 # Uploaded / Generated files
