@@ -1,5 +1,6 @@
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from app.models.user import User
 
@@ -24,6 +25,7 @@ from app.models.email_verification_token import EmailVerificationToken
 
 from app.auth.otp import generate_otp_code, hash_otp_code, verify_otp_code
 from app.models.email_otp import EmailOTP
+from app.core.config import settings
 
 
 class AuthService:
@@ -42,14 +44,10 @@ class AuthService:
         if existing_user:
             if existing_user.email_verified:
                 raise ValueError("Email is already registered.")
-
-            # Unverified account retry: update credentials and allow re-registration
-            existing_user.username = username
-            existing_user.password_hash = hash_password(password)
-            existing_user.auth_provider = "local"
-            db.commit()
-            db.refresh(existing_user)
-            return existing_user
+            raise ValueError(
+                "An unverified account with this email already exists. "
+                "Please check your inbox or request a new verification email."
+            )
 
         # Hash password
         hashed_password = hash_password(password)
@@ -63,10 +61,13 @@ class AuthService:
             email_verified=False,
         )
 
-        db.add(user)
-
-        db.commit()
-        db.refresh(user)
+        try:
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        except IntegrityError:
+            db.rollback()
+            raise ValueError("Email is already registered.")
 
         return user
 
@@ -196,7 +197,8 @@ class AuthService:
 
         raw_token, token_hash = generate_reset_token()
 
-        expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
+        reset_expire_minutes = getattr(settings, "PASSWORD_RESET_TOKEN_EXPIRE_MINUTES", 30)
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=reset_expire_minutes)
 
         reset_token = PasswordResetToken(
             user_id=user.id,
@@ -243,10 +245,20 @@ class AuthService:
         if not user:
             raise ValueError("Invalid or expired password reset token.")
 
+        # Atomically consume the token to prevent concurrent reuse
+        updated = (
+            db.query(PasswordResetToken)
+            .filter(
+                PasswordResetToken.id == reset_token.id,
+                PasswordResetToken.used_at.is_(None),
+            )
+            .update({PasswordResetToken.used_at: now}, synchronize_session="fetch")
+        )
+        if updated == 0:
+            raise ValueError("Invalid or expired password reset token.")
+
         user.password_hash = hash_password(new_password)
         user.token_version = (user.token_version or 1) + 1
-
-        reset_token.used_at = now
 
         db.commit()
 
@@ -274,7 +286,8 @@ class AuthService:
         # Create a new verification token
         raw_token, token_hash = generate_verification_token()
 
-        expires_at = now + timedelta(minutes=30)
+        verify_expire_minutes = getattr(settings, "EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES", 30)
+        expires_at = now + timedelta(minutes=verify_expire_minutes)
 
         verification_token = EmailVerificationToken(
             user_id=user_id,
@@ -319,8 +332,19 @@ class AuthService:
         if not user:
             raise ValueError("User not found.")
 
+        # Atomically consume the verification token
+        updated = (
+            db.query(EmailVerificationToken)
+            .filter(
+                EmailVerificationToken.id == verification_token.id,
+                EmailVerificationToken.used_at.is_(None),
+            )
+            .update({EmailVerificationToken.used_at: now}, synchronize_session="fetch")
+        )
+        if updated == 0:
+            raise ValueError("Verification token has already been used.")
+
         user.email_verified = True
-        verification_token.used_at = now
 
         db.commit()
 
@@ -363,19 +387,22 @@ class AuthService:
         # Generate cryptographically secure 6-digit code and store its hash
         raw_otp = generate_otp_code()
         otp_hash = hash_otp_code(clean_email, raw_otp)
-        expires_at = now + timedelta(minutes=5)
+        otp_expire_minutes = getattr(settings, "OTP_EXPIRE_MINUTES", 5)
+        cooldown_seconds = getattr(settings, "OTP_RESEND_COOLDOWN_SECONDS", 60)
+        max_attempts = getattr(settings, "OTP_MAX_ATTEMPTS", 5)
+        expires_at = now + timedelta(minutes=otp_expire_minutes)
 
         otp_record = EmailOTP(
             email=clean_email,
             otp_hash=otp_hash,
             expires_at=expires_at,
             attempts=0,
-            max_attempts=5,
+            max_attempts=max_attempts,
         )
         db.add(otp_record)
         db.commit()
 
-        return raw_otp, 60
+        return raw_otp, cooldown_seconds
 
     def verify_login_otp(
         self,

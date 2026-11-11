@@ -243,24 +243,26 @@ async def test_register_smtp_failure_returns_503_and_allows_retry(async_client, 
     assert user is not None
     assert user.email_verified is False
 
-    # 3. User can retry registration (with updated username/password)
-    # Restore working email service
-    monkeypatch.setattr(
-        auth_router.email_service,
-        "send_email_verification",
-        AsyncMock(return_value=True),
-    )
+    initial_hash = user.password_hash
+    initial_username = user.username
 
+    # 3. Second registration attempt MUST NOT overwrite password or username
     retry_payload = {
         "username": "unverifieduser_updated",
         "email": "unverified@example.com",
         "password": "NewPassword456!",
     }
     retry_resp = await async_client.post("/auth/register", json=retry_payload)
-    assert retry_resp.status_code == 200
-    assert retry_resp.json()["username"] == "unverifieduser_updated"
+    assert retry_resp.status_code == 400
+    assert "unverified account with this email already exists" in retry_resp.json()["detail"].lower()
 
-    # 4. Once verified, registration attempt MUST fail with 400
+    # Verify credentials remained completely untouched
+    db.expire_all()
+    user = db.query(User).filter(User.email == "unverified@example.com").first()
+    assert user.password_hash == initial_hash
+    assert user.username == initial_username
+
+    # 4. Once verified, registration attempt MUST fail with 400 "already registered"
     user.email_verified = True
     db.commit()
 

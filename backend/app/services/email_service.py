@@ -168,8 +168,9 @@ YtGenius Team
         self,
         email: str,
         otp: str,
-        expires_minutes: int = 5,
+        expires_minutes: int | None = None,
     ) -> bool:
+        effective_expires = expires_minutes if expires_minutes is not None else getattr(settings, "OTP_EXPIRE_MINUTES", 5)
         message = MessageSchema(
             subject=f"Your YtGenius verification code: {otp}",
             recipients=[email],
@@ -179,7 +180,7 @@ Your single-use verification code for YtGenius is:
 
 {otp}
 
-This code will expire in {expires_minutes} minutes.
+This code will expire in {effective_expires} minutes.
 
 If you did not request this login code, you can safely ignore this email.
 

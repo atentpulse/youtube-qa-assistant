@@ -7,7 +7,7 @@ from sqlalchemy import create_engine, text
 
 def test_upgrade_downgrade_cycle_disposable_db():
     temp_dir = tempfile.gettempdir()
-    db_path = os.path.join(temp_dir, "vidmind_test_migration_cycle.db")
+    db_path = os.path.join(temp_dir, "ytgenius_test_migration_cycle.db")
     if os.path.exists(db_path):
         os.remove(db_path)
 

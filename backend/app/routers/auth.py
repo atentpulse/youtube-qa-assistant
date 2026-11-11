@@ -79,13 +79,14 @@ router = APIRouter(
 
 from app.core import settings
 from app.core.rate_limiter import (
+    check_auth_rate_limit,
+    check_resend_verification_rate_limit,
     check_otp_send_rate_limit,
     check_otp_verify_rate_limit,
 )
 
 FRONTEND_URL = (
-    os.getenv("FRONTEND_URL")
-    or settings.FRONTEND_URL
+    settings.FRONTEND_URL
     or "http://localhost:3000"
 ).rstrip("/")
 
@@ -102,6 +103,7 @@ email_service = EmailService()
 @router.post(
     "/register",
     response_model=UserResponse,
+    dependencies=[Depends(check_auth_rate_limit)],
 )
 async def register_user(
     request: RegisterRequest,
@@ -210,6 +212,7 @@ def verify_email(
 
 @router.post(
     "/resend-verification",
+    dependencies=[Depends(check_resend_verification_rate_limit)],
 )
 async def resend_verification(
     request: ForgotPasswordRequest,
@@ -313,6 +316,7 @@ async def resend_verification(
 @router.post(
     "/login",
     response_model=TokenResponse,
+    dependencies=[Depends(check_auth_rate_limit)],
 )
 def login_user(
     request: LoginRequest,
@@ -379,7 +383,7 @@ async def send_login_otp(
             sent = await email_service.send_login_otp_email(
                 email=clean_email,
                 otp=raw_otp,
-                expires_minutes=5,
+                expires_minutes=getattr(settings, "OTP_EXPIRE_MINUTES", 5),
             )
             if not sent and os.getenv("TESTING") != "1":
                 raise HTTPException(
@@ -452,9 +456,6 @@ def verify_login_otp(
             status_code=400,
             detail=str(error),
         )
-
-
-# -------------------------------
 
 
 # --------------------------------
@@ -653,7 +654,7 @@ async def google_callback(
             try:
                 user_info = await oauth.google.userinfo(token=token)
             except Exception as e:
-                print(f"Fallback userinfo fetch failed: {e}")
+                logger.warning("Fallback userinfo fetch failed: %s", e)
 
         if not user_info:
             error_message = urllib.parse.quote(
@@ -984,6 +985,7 @@ def logout(
 
 @router.post(
     "/forgot-password",
+    dependencies=[Depends(check_auth_rate_limit)],
 )
 async def forgot_password(
     request: ForgotPasswordRequest,
@@ -1055,6 +1057,7 @@ async def forgot_password(
 
 @router.post(
     "/reset-password",
+    dependencies=[Depends(check_auth_rate_limit)],
 )
 def reset_password(
     request: ResetPasswordRequest,

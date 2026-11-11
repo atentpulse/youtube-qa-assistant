@@ -112,6 +112,12 @@ def get_current_user_optional(
         if user_id is None:
             raise credentials_exception
 
+        if payload.get("type") == "refresh":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Refresh token cannot be used for API access. Use an access token.",
+            )
+
         user_id = int(user_id)
         token_version = payload.get("tv")
 
