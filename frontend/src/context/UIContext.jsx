@@ -13,9 +13,15 @@ export function UIProvider({ children }) {
   const [isSidebarCollapsed, setIsSidebarCollapsedState] = useState(() => {
     if (typeof window === 'undefined') return false;
     try {
-      const stored = window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) || window.localStorage.getItem('vidmind_sidebar_collapsed');
+      const stored = window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
       if (stored !== null) {
         return stored === 'true';
+      }
+      const legacyStored = window.localStorage.getItem('vidmind_sidebar_collapsed');
+      if (legacyStored !== null) {
+        window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, legacyStored);
+        window.localStorage.removeItem('vidmind_sidebar_collapsed');
+        return legacyStored === 'true';
       }
       // Default to collapsed on narrower laptop screens (<= 1024px) to protect dual-panel stage
       return window.innerWidth <= 1024;
@@ -62,6 +68,7 @@ export function UIProvider({ children }) {
     setIsSidebarCollapsedState(collapsed);
     try {
       window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(collapsed));
+      window.localStorage.removeItem('vidmind_sidebar_collapsed');
     } catch {
       // Ignore storage write failures (e.g. private browsing quota)
     }
@@ -72,6 +79,7 @@ export function UIProvider({ children }) {
       const next = !prev;
       try {
         window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next));
+        window.localStorage.removeItem('vidmind_sidebar_collapsed');
       } catch {
         // Ignore storage write failures
       }

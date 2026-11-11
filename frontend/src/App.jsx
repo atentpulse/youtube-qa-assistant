@@ -12,6 +12,13 @@ import LoginPage from './pages/LoginPage';
 import OAuthCallbackPage from './pages/OAuthCallbackPage';
 import AppPage from './pages/AppPage';
 import SettingsPage from './pages/Settings/SettingsPage';
+import PrivacyPage from './pages/Legal/PrivacyPage';
+import TermsPage from './pages/Legal/TermsPage';
+import DisclaimerPage from './pages/Legal/DisclaimerPage';
+import ContactPage from './pages/Legal/ContactPage';
+import DocsPage from './pages/Legal/DocsPage';
+import VerifyEmailPage from './pages/Auth/VerifyEmailPage';
+import ResetPasswordPage from './pages/Auth/ResetPasswordPage';
 
 export default function App() {
   return (
@@ -24,6 +31,13 @@ export default function App() {
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<LoginPage initialMode="register" />} />
+                <Route path="/verify-email" element={<VerifyEmailPage />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
+                <Route path="/privacy" element={<PrivacyPage />} />
+                <Route path="/terms" element={<TermsPage />} />
+                <Route path="/disclaimer" element={<DisclaimerPage />} />
+                <Route path="/contact" element={<ContactPage />} />
+                <Route path="/docs" element={<DocsPage />} />
                 <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
                 <Route
                   path="/app"

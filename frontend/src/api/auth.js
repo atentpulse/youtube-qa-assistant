@@ -131,6 +131,38 @@ export function deleteAccount(opts) {
 }
 
 /**
+ * Verify user email address with single-use verification token.
+ * Backend contract: GET /auth/verify-email?token=...
+ */
+export function verifyEmail(token, opts) {
+  return apiClient.get('/auth/verify-email', { ...opts, params: { token } });
+}
+
+/**
+ * Request a password reset link for the given email address.
+ * Backend contract: POST /auth/forgot-password
+ */
+export function forgotPassword(email, opts) {
+  return apiClient.post('/auth/forgot-password', { email }, opts);
+}
+
+/**
+ * Reset password using single-use reset token and new password.
+ * Backend contract: POST /auth/reset-password
+ */
+export function resetPassword({ token, new_password }, opts) {
+  return apiClient.post('/auth/reset-password', { token, new_password }, opts);
+}
+
+/**
+ * Request a new verification email for an unverified account.
+ * Backend contract: POST /auth/resend-verification
+ */
+export function resendVerification(email, opts) {
+  return apiClient.post('/auth/resend-verification', { email }, opts);
+}
+
+/**
  * Send a 6-digit login OTP code to the provided email address.
  * Backend contract: POST /auth/otp/send
  */

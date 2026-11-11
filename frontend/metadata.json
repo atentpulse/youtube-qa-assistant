@@ -1,8 +1,0 @@
-{
-  "name": "VidMind — Ask your videos anything",
-  "description": "Ask questions about any YouTube video and get instant, timestamped answers.",
-  "requestFramePermissions": [],
-  "majorCapabilities": [
-    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
-  ]
-}
