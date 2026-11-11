@@ -1,0 +1,345 @@
+/* ---- Legal and Resource Page Layout Styles ---- */
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-canvas, #0f0f0f);
+  color: var(--text-primary, #f1f1f1);
+  font-family: inherit;
+}
+
+/* Navbar */
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(15, 15, 15, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-default, #303030);
+  width: 100%;
+}
+
+.navContainer {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.navBrand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+.brandBadge {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--accent-red, #ff0033);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.brandText {
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+  color: var(--text-primary, #f1f1f1);
+}
+
+.brandYt {
+  color: var(--text-primary, #f1f1f1);
+}
+
+.brandGenius {
+  color: var(--text-primary, #f1f1f1);
+}
+
+.navLinks {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.navLink {
+  color: var(--text-secondary, #aaaaaa);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: color var(--duration-fast, 150ms) ease;
+}
+
+.navLink:hover {
+  color: var(--text-primary, #f1f1f1);
+}
+
+.navCta {
+  background: var(--accent-red, #ff0033);
+  color: #ffffff;
+  padding: 7px 16px;
+  border-radius: var(--radius-sm, 6px);
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background var(--duration-fast, 150ms) ease, transform 0.15s ease;
+}
+
+.navCta:hover {
+  background: #cc0029;
+  transform: translateY(-1px);
+}
+
+/* Main Content */
+.main {
+  flex: 1;
+  padding: 48px 24px 72px;
+  display: flex;
+  justify-content: center;
+}
+
+.container {
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.header {
+  margin-bottom: 36px;
+  border-bottom: 1px solid var(--border-default, #303030);
+  padding-bottom: 24px;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary, #aaaaaa);
+  text-decoration: none;
+  margin-bottom: 16px;
+  transition: color var(--duration-fast, 150ms) ease;
+}
+
+.backLink:hover {
+  color: var(--text-primary, #f1f1f1);
+}
+
+.title {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text-primary, #f1f1f1);
+  margin: 0 0 10px;
+  line-height: 1.2;
+}
+
+.subtitle {
+  font-size: 16px;
+  color: var(--text-secondary, #aaaaaa);
+  margin: 0 0 14px;
+  line-height: 1.5;
+}
+
+.metaRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 12.5px;
+  color: var(--text-muted, #717171);
+}
+
+/* Document Article Typography */
+.content {
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text-secondary, #c7c7c7);
+}
+
+.content h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary, #f1f1f1);
+  margin: 36px 0 14px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+}
+
+.content h3 {
+  font-size: 16.5px;
+  font-weight: 600;
+  color: var(--text-primary, #f1f1f1);
+  margin: 24px 0 10px;
+}
+
+.content p {
+  margin: 0 0 16px;
+}
+
+.content ul,
+.content ol {
+  margin: 0 0 18px 24px;
+  padding: 0;
+}
+
+.content li {
+  margin-bottom: 8px;
+}
+
+.content strong {
+  color: var(--text-primary, #f1f1f1);
+  font-weight: 600;
+}
+
+.content a {
+  color: var(--accent-blue, #3ea6ff);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.content a:hover {
+  color: #60a5fa;
+}
+
+.content code {
+  font-family: var(--font-mono, monospace);
+  font-size: 13.5px;
+  background: var(--bg-surface-2, #212121);
+  border: 1px solid var(--border-default, #303030);
+  border-radius: 4px;
+  padding: 2px 6px;
+  color: #e2e8f0;
+}
+
+/* Notice Box */
+.noticeBox {
+  background: var(--bg-surface-2, #1b2230);
+  border: 1px solid rgba(62, 166, 255, 0.3);
+  border-radius: var(--radius-md, 8px);
+  padding: 16px 20px;
+  margin: 24px 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #cbd5e1;
+}
+
+.noticeBoxAlert {
+  background: rgba(234, 179, 8, 0.08);
+  border-color: rgba(234, 179, 8, 0.3);
+  color: #fef08a;
+}
+
+.noticeBoxIcon {
+  color: var(--accent-blue, #3ea6ff);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.noticeBoxAlert .noticeBoxIcon {
+  color: #eab308;
+}
+
+/* Cards Grid (used in Contact & Docs) */
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 18px;
+  margin: 24px 0 36px;
+}
+
+.card {
+  background: var(--bg-surface-2, #212121);
+  border: 1px solid var(--border-default, #303030);
+  border-radius: var(--radius-md, 8px);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color var(--duration-fast, 150ms) ease;
+}
+
+.card:hover {
+  border-color: var(--border-hover, #444444);
+}
+
+.cardIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--bg-surface-3, #2a2a2a);
+  border: 1px solid var(--border-default, #303030);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-blue, #3ea6ff);
+  margin-bottom: 4px;
+}
+
+.cardTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary, #f1f1f1);
+  margin: 0;
+}
+
+.cardDesc {
+  font-size: 13.5px;
+  color: var(--text-secondary, #aaaaaa);
+  margin: 0;
+  line-height: 1.5;
+  flex: 1;
+}
+
+.cardAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-blue, #3ea6ff);
+  text-decoration: none;
+  margin-top: 4px;
+}
+
+.cardAction:hover {
+  text-decoration: underline;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .main {
+    padding: 32px 16px 48px;
+  }
+
+  .title {
+    font-size: 26px;
+  }
+
+  .navLinks {
+    gap: 12px;
+  }
+
+  .navLink {
+    font-size: 13px;
+  }
+
+  .navCta {
+    padding: 6px 12px;
+    font-size: 12.5px;
+  }
+
+  .cardGrid {
+    grid-template-columns: 1fr;
+  }
+}
