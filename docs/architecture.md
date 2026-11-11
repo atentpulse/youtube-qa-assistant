@@ -196,6 +196,11 @@ YtGenius 2.0 provides production-ready Docker containerization managed via Docke
 ### 4.2 Multi-Service Topology (`docker-compose.yml`)
 - **`backend`**:
   - Exposes port `${PORT:-8000}:8000`.
+  - Dynamic Google OAuth callback redirect URI tracking:
+    ```yaml
+    - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI:-http://localhost:${PORT:-8000}/auth/google/callback}
+    ```
+    Automatically aligns the callback port with `${PORT:-8000}`, while supporting explicit operator overrides via `GOOGLE_REDIRECT_URI`.
   - Enforces mandatory environment variables (`POSTGRES_PASSWORD`, `SECRET_KEY`, `FRONTEND_URL`) using fail-fast syntax.
   - Liveness probe: `curl -f http://localhost:8000/health/live`.
   - Startup dependencies:
@@ -208,7 +213,7 @@ YtGenius 2.0 provides production-ready Docker containerization managed via Docke
     ```
 - **`postgres`**:
   - Image: `postgres:16-alpine`.
-  - Ports: Bound strictly to `127.0.0.1:5432:5432` to prevent external network exposure.
+  - Ports: Bound strictly to loopback: `127.0.0.1:${POSTGRES_PORT:-5432}:5432`. Parameterized with `${POSTGRES_PORT:-5432}` to prevent host port conflicts when a native PostgreSQL service already occupies port 5432 on the host machine.
   - Volume: Named persistent volume `postgres_data:/var/lib/postgresql/data`.
   - Healthcheck: `pg_isready -U ${POSTGRES_USER:-ytgenius} -d ${POSTGRES_DB:-ytgenius}`.
 - **`qdrant`**:
@@ -219,4 +224,5 @@ YtGenius 2.0 provides production-ready Docker containerization managed via Docke
 
 ### 4.3 Verification Status & Runtime Boundaries
 - **Static Configuration Validation**: Passed cleanly via `docker-compose config --quiet` (exit code `0`).
-- **Runtime Validation Status**: **Unverified**. Because the local Docker daemon was unavailable during environment validation, image compilation (`docker build`) and live container execution (`docker compose up`) have not been verified at runtime.
+- **Container Build & Runtime Verification**: Multi-stage Dockerfile successfully compiled, validating the non-root `ytgenius` user, Debian-slim runtime with `libgomp1`, Linux `pywin32` exclusion, and local Qdrant container startup.
+- **OAuth Boundary Disclosure**: While OAuth configuration validation, token redirection logic, and state verification pass automated tests, **real Google OAuth end-to-end authentication using actual Google credentials has not been verified** against live Google accounts. Automated unit and integration tests are not equivalent to a real production OAuth login.

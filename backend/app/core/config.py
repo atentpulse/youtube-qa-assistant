@@ -1,7 +1,9 @@
+import ipaddress
 import os
 from pathlib import Path
 from typing import List, Optional, Union
-from pydantic import Field, field_validator, model_validator
+import urllib.parse
+from pydantic import Field, ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parents[3]
@@ -118,11 +120,21 @@ class Settings(BaseSettings):
 
     @field_validator("GOOGLE_REDIRECT_URI", mode="before")
     @classmethod
-    def sanitize_google_redirect_uri(cls, value: Optional[str]) -> str:
+    def sanitize_google_redirect_uri(cls, value: Optional[str], info: ValidationInfo) -> str:
         if isinstance(value, str):
             clean = value.strip().strip("'\"")
+            env = ""
+            if info.data and "ENVIRONMENT" in info.data:
+                env = str(info.data.get("ENVIRONMENT") or "").strip().lower()
+            if not env:
+                env = os.getenv("ENVIRONMENT", "").strip().lower()
+            if env in ("production", "prod"):
+                return clean
             if clean:
                 return clean.rstrip("/")
+            return ""
+        if value is None:
+            return ""
         return "http://localhost:8000/auth/google/callback"
 
     @field_validator("CHROME_EXTENSION_IDS", mode="before")
@@ -179,6 +191,104 @@ class Settings(BaseSettings):
             ):
                 raise ValueError(
                     "Production security violation: Production requires an explicit, non-localhost FRONTEND_URL (e.g. https://ytgenius.example.com)."
+                )
+
+            raw_redirect = (self.GOOGLE_REDIRECT_URI or "").strip()
+            if not raw_redirect:
+                raise ValueError(
+                    "Production security violation: Production requires an explicit, non-localhost HTTPS GOOGLE_REDIRECT_URI."
+                )
+
+            try:
+                parsed = urllib.parse.urlsplit(raw_redirect)
+            except Exception as e:
+                raise ValueError(
+                    f"Production security violation: Malformed GOOGLE_REDIRECT_URI: {e}"
+                )
+
+            if parsed.scheme.lower() != "https":
+                raise ValueError(
+                    "Production security violation: Production requires HTTPS scheme for GOOGLE_REDIRECT_URI."
+                )
+
+            if parsed.username is not None or parsed.password is not None:
+                raise ValueError(
+                    "Production security violation: GOOGLE_REDIRECT_URI must not contain embedded user credentials."
+                )
+
+            try:
+                hostname = parsed.hostname
+            except ValueError as e:
+                raise ValueError(
+                    f"Production security violation: Invalid hostname or IPv6 formatting in GOOGLE_REDIRECT_URI: {e}"
+                )
+
+            if not hostname:
+                raise ValueError(
+                    "Production security violation: Missing hostname in GOOGLE_REDIRECT_URI."
+                )
+
+            hostname = hostname.lower()
+            if hostname == "localhost" or hostname.endswith(".localhost"):
+                raise ValueError(
+                    "Production security violation: Localhost is not allowed for GOOGLE_REDIRECT_URI in production."
+                )
+
+            try:
+                clean_host = hostname.split("%")[0]
+                ip = ipaddress.ip_address(clean_host)
+                is_ip = True
+            except ValueError:
+                is_ip = False
+
+            if is_ip:
+                if ip.is_loopback:
+                    raise ValueError(
+                        f"Production security violation: Loopback IP address ({ip}) is not allowed for GOOGLE_REDIRECT_URI in production."
+                    )
+                if (not ip.is_global) or ip.is_multicast:
+                    raise ValueError(
+                        f"Production security violation: Non-public IP address ({ip}) is not allowed for GOOGLE_REDIRECT_URI in production."
+                    )
+            else:
+                if len(hostname) > 253:
+                    raise ValueError(
+                        "Production security violation: Hostname exceeds maximum allowed length of 253 characters."
+                    )
+                import re
+                label_regex = re.compile(r"^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$", re.IGNORECASE)
+                labels = hostname.split(".")
+                if any(not label_regex.match(label) for label in labels):
+                    raise ValueError(
+                        f"Production security violation: Invalid hostname syntax: {hostname}"
+                    )
+
+            authority = parsed.netloc.split("@")[-1]
+            post_bracket = authority.split("]")[-1] if "]" in authority else authority
+            if ":" in post_bracket:
+                port_str = post_bracket.split(":", 1)[1]
+                if not port_str:
+                    raise ValueError(
+                        "Production security violation: GOOGLE_REDIRECT_URI contains an empty port specification."
+                    )
+
+            try:
+                port = parsed.port
+                if port is not None and not (1 <= port <= 65535):
+                    raise ValueError("Port out of range")
+            except ValueError as e:
+                raise ValueError(
+                    f"Production security violation: Invalid port in GOOGLE_REDIRECT_URI: {e}"
+                )
+
+            if parsed.path != "/auth/google/callback":
+                raise ValueError(
+                    "Production security violation: GOOGLE_REDIRECT_URI path must be exactly '/auth/google/callback'."
+                )
+
+            if parsed.query or parsed.fragment:
+                raise ValueError(
+                    "Production security violation: GOOGLE_REDIRECT_URI must not contain query parameters or fragments."
                 )
         return self
 

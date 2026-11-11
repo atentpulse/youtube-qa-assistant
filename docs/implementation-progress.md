@@ -4,9 +4,9 @@
 - **Project**: YtGenius — AI-powered YouTube Video Q&A Assistant (Backend v2.0)
 - **Primary Repository**: `C:\Users\ashik\OneDrive\Desktop\youtube-qa-assistant` (`rajashik-web/youtube-qa-assistant` on `main`)
 - **Protocol File**: [`AGENTS.md`](file:///c:/Users/ashik/OneDrive/Desktop/youtube-qa-assistant/AGENTS.md)
-- **Current Phase**: **Phase 1: Backend Production Hardening & Release-Readiness Audit COMPLETED**
-- **Last Updated**: 2026-11-11 14:35 IST
-- **Verification Status**: **158/158 Automated Backend Tests Passing (100% Historical Baseline) + 20/20 Frontend Unit Tests Passing (100%)**
+- **Current Phase**: **Phase 2: Docker Runtime Verification, Host Port Resolution & OAuth Hardening COMPLETED**
+- **Last Updated**: 2026-11-11 21:05 IST
+- **Verification Status**: **182/182 Automated Backend Tests Passing (100% Full Regression Pass Rate) + 20/20 Frontend Unit Tests Passing (100%)**
 
 ---
 
@@ -33,6 +33,7 @@
 | **Commit 4: Legal & Footer** | Legal Pages and Shared Footer | **COMPLETE** | Committed `8165778`. Added Privacy, Terms, Disclaimer, Contact, Docs pages and shared Footer component with truthful disclosures on public GitHub issues. |
 | **Commit 5: Frontend Core & Auth** | Shell, Routing & Password Reset | **COMPLETE** | Committed `5d19bcc`. Added `VerifyEmailPage`, `ResetPasswordPage`, dark-theme persistence, storage key migration, and clean 20/20 test pass (`npm --prefix frontend test`). |
 | **Commit 6: Containerization** | Hardened Production Docker & Compose | **COMPLETE** | Committed `6bc1db7`. Multi-stage Python 3.12 Dockerfile with non-root user `ytgenius`, Debian-slim runtime with `libgomp1`, Linux `pywin32` exclusion, and loopback-bound Compose orchestration. Validated via `docker-compose config --quiet` (exit code 0). |
+| **Phase 2: Docker & OAuth Hardening** | Host Port Resolution, OAuth Security & Full Regression | **COMPLETE** | 1. Built multi-stage backend container, verified non-root user `ytgenius`, PyTorch/SentenceTransformer imports, and Qdrant container startup.<br>2. Resolved host port 5432 conflict via `${POSTGRES_PORT:-5432}` parameterization in `docker-compose.yml`.<br>3. Hardened `GOOGLE_REDIRECT_URI` validation: enforced HTTPS, non-global IP rejection (`not ip.is_global or ip.is_multicast`), exact path `/auth/google/callback`, and bracket-aware empty/invalid port rejection.<br>4. Dynamic Compose callback port tracking `${PORT:-8000}` with test isolation.<br>5. Full backend regression passed: 182/182 tests across 21 test files in 58.78s; bytecode compilation passed cleanly. |
 
 ---
 
@@ -160,9 +161,10 @@
    - The sliding-window rate limiter (`app.core.rate_limiter.RateLimiter`) uses an in-memory dictionary.
    - It is process-local and is **not distributed** across multiple Uvicorn workers or container replicas.
    - Distributed cluster-wide rate limiting requires a centralized store such as Redis.
-2. **Docker Runtime Verification Boundary**:
-   - Docker Compose static configuration validation passed cleanly (`docker-compose config --quiet`, exit code `0`).
-   - However, because the local Docker daemon was unavailable on the Windows host during audit, Docker image builds (`docker build`) and live container startup (`docker compose up`) remain **unverified at runtime**.
+2. **Docker Runtime Verification & Host Port Boundaries**:
+   - Multi-stage Docker image build and static Compose configuration passed (`docker-compose config --quiet`, exit code `0`).
+   - Host PostgreSQL port is parameterized via `${POSTGRES_PORT:-5432}` to avoid conflicts with native PostgreSQL instances.
+   - Container verification confirmed non-root user `ytgenius`, runtime dependencies, and local Qdrant startup.
 3. **Qdrant Collection Initialization on Boot**:
    - `QdrantVectorStore.create_collection` catches errors during startup and logs a warning so backend boot is not blocked if Qdrant is still spinning up.
    - It does **not automatically retry** collection creation on subsequent user queries; manual restart or subsequent API trigger is required if initial boot failed.
@@ -175,6 +177,10 @@
 6. **Deferred Browser Extension**:
    - The repository provides CORS regex whitelisting (`chrome-extension://*`) and unified REST endpoints.
    - However, the Chrome Extension package itself remains **deferred** and is not bundled or implemented in the current repository scope.
+7. **Real Google OAuth End-to-End Authentication Boundary**:
+   - While OAuth redirect URI configuration validation, token redirection logic, and state verification pass automated unit and integration tests, **real Google OAuth end-to-end authentication using actual Google credentials has not been verified** against live Google accounts. Automated tests with simulated responses are not equivalent to a real production OAuth login.
+8. **Backend Linting**:
+   - Backend linting was **NOT RUN — tool unavailable** because backend lint tools (`ruff`, `flake8`, `black`, `mypy`) are not installed or configured in the project's virtual environment.
 
 
 

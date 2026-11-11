@@ -49,6 +49,17 @@
   - `EmailService` handles absence of SMTP credentials gracefully without crashing or throwing unhandled 500 errors.
   - Logs are sanitized: sensitive verification tokens, password reset tokens, and full reset URLs are never printed to logs or standard streams.
 
+- **Google OAuth Redirect URI Security & Production Hardening**:
+  - Centralized validation in [`app.core.config.Settings`](file:///backend/app/core/config.py) (`validate_production_security`) strictly enforces production callback policies for `GOOGLE_REDIRECT_URI`:
+    - **HTTPS Scheme Required**: In production (`ENVIRONMENT="production"` or `"prod"`), the redirect URI must strictly use the `https://` scheme. Insecure `http://` schemes are rejected at startup.
+    - **Public Hostname / IP Required**: Localhost (`localhost`, `*.localhost`), IPv4 loopback (`127.0.0.0/8`), IPv6 loopback (`::1`), RFC 1918 private IPv4 (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), unique-local IPv6 (`fc00::/7`), and link-local addresses (`169.254.0.0/16`, `fe80::/10`) are strictly rejected.
+    - **Non-Global & Multicast IP Rejection**: Enforces `(not ip.is_global) or ip.is_multicast`, rejecting RFC 6598 Carrier-Grade NAT / Shared Address Space (`100.64.0.0/10`), unspecified addresses (`0.0.0.0`, `::`), reserved addresses (`240.0.0.0/4`), documentation ranges, and multicast addresses (`224.0.0.0/4`, `ff00::/8`).
+    - **Exact Callback Path Matching**: Path must strictly match `/auth/google/callback`. Subpaths, alternative paths, and trailing slashes (`/auth/google/callback/`) are rejected with `ValueError`.
+    - **Port Validation & Empty Port Rejection**: Port must fall strictly in the range `1 <= port <= 65535`. Explicitly empty ports (e.g. `example.com:`), zero (`:0`), non-numeric (`:abc`), and out-of-range (`:65536`) ports are rejected using bracket-aware authority parsing that correctly handles IPv6 bracket syntax (`[2606:4700:4700::1111]`).
+    - **No Embedded Credentials or Query/Fragments**: URLs bearing username/password (`https://user:pass@...`), query strings (`?query=1`), or fragments (`#hash`) are rejected.
+  - **Development Localhost Compatibility**: When running in development (`ENVIRONMENT="development"`), `http://localhost:8000/auth/google/callback` and `http://127.0.0.1:8000/auth/google/callback` are permitted, and trailing slashes are cleaned automatically for developer convenience without relaxing production requirements.
+  - **Testing & Real OAuth Boundary Disclosure**: Automated unit and integration tests verify OAuth initiation, state handling, code exchange logic, and configuration validation. However, **real Google OAuth end-to-end authentication using actual Google credentials has not been verified** against live Google accounts. Automated tests with simulated responses are not equivalent to a real production OAuth login.
+
 ---
 
 ## 2. Distributed Advisory Locking & Ingestion Safety
