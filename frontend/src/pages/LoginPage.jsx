@@ -3,6 +3,7 @@ import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { API_BASE_URL } from '../api/client';
+import { sendLoginOtp, verifyLoginOtp } from '../api/auth';
 import Spinner from '../components/common/Spinner';
 import styles from './AuthPages.module.css';
 
@@ -29,16 +30,33 @@ function GoogleIcon() {
   );
 }
 
-// YtGenius uses Google as the primary sign-in method. This page presents a focused
-// "Continue with Google" action that redirects to the backend OAuth
-// endpoint (GET /api/auth/google/login).
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function LoginPage() {
-  const { isAuthenticated, loading, sessionMessage, clearSessionMessage } = useAuth();
+  const { isAuthenticated, loading, sessionMessage, clearSessionMessage, completeOAuthLogin } = useAuth();
   const [searchParams] = useSearchParams();
   const oauthError = searchParams.get('error');
-  const [isRedirecting, setIsRedirecting] = useState(false);
+
+  const [isRedirectingGoogle, setIsRedirectingGoogle] = useState(false);
+  const [step, setStep] = useState('email'); // 'email' | 'otp'
+  const [email, setEmail] = useState('');
+  const [otp, setOtp] = useState('');
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+  const [errorMessage, setErrorMessage] = useState(null);
 
   useEffect(() => () => clearSessionMessage(), [clearSessionMessage]);
+
+  // Resend cooldown timer
+  useEffect(() => {
+    if (step !== 'otp' || cooldown <= 0) return;
+    const timer = setInterval(() => {
+      setCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [step, cooldown]);
 
   if (loading) {
     return (
@@ -58,8 +76,85 @@ export default function LoginPage() {
   }
 
   const handleContinueWithGoogle = () => {
-    setIsRedirecting(true);
+    setIsRedirectingGoogle(true);
     window.location.href = `${API_BASE_URL}/auth/google/login`;
+  };
+
+  const handleContinueWithEmail = async (e) => {
+    e.preventDefault();
+    const cleanEmail = email.trim();
+    if (!cleanEmail) {
+      setErrorMessage('Please enter your email address.');
+      return;
+    }
+    if (!EMAIL_REGEX.test(cleanEmail)) {
+      setErrorMessage('Please enter a valid email address.');
+      return;
+    }
+
+    setIsSendingEmail(true);
+    setErrorMessage(null);
+
+    try {
+      const res = await sendLoginOtp(cleanEmail);
+      setCooldown(res?.cooldown_seconds || 60);
+      setStep('otp');
+      setOtp('');
+    } catch (err) {
+      setErrorMessage(err?.message || 'Failed to send login code. Please try again.');
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e?.preventDefault();
+    const cleanOtp = otp.trim();
+    if (cleanOtp.length !== 6) {
+      setErrorMessage('Please enter the 6-digit code sent to your email.');
+      return;
+    }
+
+    setIsVerifying(true);
+    setErrorMessage(null);
+
+    try {
+      const data = await verifyLoginOtp({ email: email.trim(), otp: cleanOtp });
+      const accessToken = data?.access_token || data?.token;
+      const refreshToken = data?.refresh_token;
+
+      if (!accessToken) {
+        throw new Error('No access token returned from server.');
+      }
+
+      await completeOAuthLogin(accessToken, refreshToken);
+    } catch (err) {
+      setErrorMessage(err?.message || 'Invalid or expired code. Please try again.');
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (cooldown > 0 || isResending) return;
+    setIsResending(true);
+    setErrorMessage(null);
+
+    try {
+      const res = await sendLoginOtp(email.trim());
+      setCooldown(res?.cooldown_seconds || 60);
+      setOtp('');
+    } catch (err) {
+      setErrorMessage(err?.message || 'Failed to resend code. Please wait and try again.');
+    } finally {
+      setIsResending(false);
+    }
+  };
+
+  const handleChangeEmail = () => {
+    setStep('email');
+    setOtp('');
+    setErrorMessage(null);
   };
 
   return (
@@ -72,43 +167,156 @@ export default function LoginPage() {
           </span>
         </Link>
 
-        <h1 className={styles.title}>Welcome to YtGenius</h1>
-        <p className={styles.body}>Ask questions about any YouTube video with AI.</p>
-
         {sessionMessage && <p className={styles.notice}>{sessionMessage}</p>}
         {oauthError && (
           <p className={styles.errorNotice} data-testid="auth-error-notice">
             {oauthError}
           </p>
         )}
+        {errorMessage && (
+          <p className={styles.errorNotice} data-testid="auth-error-message">
+            {errorMessage}
+          </p>
+        )}
 
-        <button
-          type="button"
-          className={styles.googleButton}
-          onClick={handleContinueWithGoogle}
-          disabled={isRedirecting}
-          aria-label="Continue with Google"
-          data-testid="google-auth-button"
-        >
-          {isRedirecting ? (
-            <>
-              <Spinner size={16} />
-              <span>Redirecting to Google…</span>
-            </>
-          ) : (
-            <>
-              <GoogleIcon />
-              <span>Continue with Google</span>
-            </>
-          )}
-        </button>
+        {step === 'email' ? (
+          <div data-testid="email-step">
+            <h1 className={styles.title}>Welcome to YtGenius</h1>
+            <p className={styles.body}>Ask questions about any YouTube video with AI.</p>
 
-        <p className={styles.supportingText}>Sign in securely with your Google account.</p>
+            <button
+              type="button"
+              className={styles.googleButton}
+              onClick={handleContinueWithGoogle}
+              disabled={isRedirectingGoogle || isSendingEmail}
+              aria-label="Continue with Google"
+              data-testid="google-auth-button"
+            >
+              {isRedirectingGoogle ? (
+                <>
+                  <Spinner size={16} />
+                  <span>Redirecting to Google…</span>
+                </>
+              ) : (
+                <>
+                  <GoogleIcon />
+                  <span>Continue with Google</span>
+                </>
+              )}
+            </button>
 
-        <div className={styles.authInfoNotice}>
-          The same Google sign-in works for new and returning users. YtGenius accesses only your
-          verified basic profile to identify your video library.
-        </div>
+            <div className={styles.divider}>
+              <div className={styles.dividerLine} />
+              <span className={styles.dividerText}>OR</span>
+              <div className={styles.dividerLine} />
+            </div>
+
+            <form onSubmit={handleContinueWithEmail} data-testid="email-form">
+              <input
+                type="email"
+                required
+                autoFocus
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (errorMessage) setErrorMessage(null);
+                }}
+                disabled={isSendingEmail}
+                className={styles.emailInput}
+                data-testid="email-input"
+              />
+
+              <button
+                type="submit"
+                disabled={isSendingEmail || !email.trim()}
+                className={styles.continueEmailButton}
+                data-testid="continue-email-button"
+              >
+                {isSendingEmail ? (
+                  <>
+                    <Spinner size={16} />
+                    <span>Sending code…</span>
+                  </>
+                ) : (
+                  'Continue with email'
+                )}
+              </button>
+            </form>
+          </div>
+        ) : (
+          <div data-testid="otp-step">
+            <h1 className={styles.title}>Check your email</h1>
+            <p className={styles.body}>
+              We sent a 6-digit code to <span className={styles.emailDisplay}>{email}</span>
+            </p>
+
+            <form onSubmit={handleVerifyOtp} data-testid="otp-form">
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+                required
+                autoFocus
+                placeholder="••••••"
+                value={otp}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                  setOtp(val);
+                  if (errorMessage) setErrorMessage(null);
+                }}
+                disabled={isVerifying}
+                className={styles.otpInput}
+                data-testid="otp-input"
+              />
+
+              <button
+                type="submit"
+                disabled={isVerifying || otp.trim().length !== 6}
+                className={styles.primaryButton}
+                style={{ marginTop: '14px' }}
+                data-testid="verify-otp-button"
+              >
+                {isVerifying ? (
+                  <>
+                    <Spinner size={16} />
+                    <span>Verifying…</span>
+                  </>
+                ) : (
+                  'Verify and continue'
+                )}
+              </button>
+            </form>
+
+            <div className={styles.otpActions}>
+              {cooldown > 0 ? (
+                <span className={styles.resendText} data-testid="resend-countdown">
+                  Resend code in {cooldown}s
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleResendOtp}
+                  disabled={isResending}
+                  className={styles.resendLink}
+                  data-testid="resend-button"
+                >
+                  {isResending ? 'Sending code…' : 'Resend code'}
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={handleChangeEmail}
+                className={styles.changeEmailButton}
+                data-testid="change-email-button"
+              >
+                Use a different email
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <Link to="/" className={styles.backHomeLink}>

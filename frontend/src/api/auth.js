@@ -130,3 +130,19 @@ export function deleteAccount(opts) {
   return apiClient.delete('/auth/me', opts);
 }
 
+/**
+ * Send a 6-digit login OTP code to the provided email address.
+ * Backend contract: POST /auth/otp/send
+ */
+export function sendLoginOtp(email, opts) {
+  return apiClient.post('/auth/otp/send', { email }, opts);
+}
+
+/**
+ * Verify a 6-digit login OTP code and obtain session tokens.
+ * Backend contract: POST /auth/otp/verify
+ */
+export function verifyLoginOtp({ email, otp }, opts) {
+  return apiClient.post('/auth/otp/verify', { email, otp }, opts);
+}
+

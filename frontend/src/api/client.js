@@ -1,10 +1,11 @@
 const DEFAULT_API_BASE_URL = 'http://localhost:8000';
 
 export const API_BASE_URL =
-  (typeof import.meta !== 'undefined' &&
-    import.meta.env &&
-    import.meta.env.VITE_API_BASE_URL) ||
-  DEFAULT_API_BASE_URL;
+  typeof import.meta !== 'undefined' &&
+  import.meta.env &&
+  import.meta.env.VITE_API_BASE_URL !== undefined
+    ? import.meta.env.VITE_API_BASE_URL
+    : DEFAULT_API_BASE_URL;
 
 export class ApiError extends Error {
   constructor(message, status, data = null) {
@@ -99,10 +100,15 @@ class ApiClient {
       if (err.name === 'AbortError') {
         throw new ApiError('Request timed out. Please try again.', 408);
       }
-      throw new ApiError(
-        err.message || 'Network error. Please check your connection.',
-        0
-      );
+      const rawMsg = err.message || '';
+      const isFetchFailure =
+        rawMsg.toLowerCase().includes('failed to fetch') ||
+        rawMsg.toLowerCase().includes('load failed') ||
+        rawMsg.toLowerCase().includes('networkerror');
+      const errorMsg = isFetchFailure
+        ? 'Unable to connect to the YtGenius server. Please verify the backend is running and reachable.'
+        : (rawMsg || 'Network error. Please check your connection.');
+      throw new ApiError(errorMsg, 0);
     } finally {
       if (timer) clearTimeout(timer);
     }

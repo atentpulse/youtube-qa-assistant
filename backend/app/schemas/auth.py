@@ -88,3 +88,22 @@ class OAuthExchangeRequest(BaseModel):
         min_length=1,
         max_length=200,
     )
+
+
+class SendOTPRequest(BaseModel):
+    email: EmailStr
+
+
+class SendOTPResponse(BaseModel):
+    message: str
+    cooldown_seconds: int = 60
+
+
+class VerifyOTPRequest(BaseModel):
+    email: EmailStr
+    otp: str = Field(
+        min_length=6,
+        max_length=6,
+        pattern=r"^\d{6}$",
+        description="6-digit numeric login code",
+    )

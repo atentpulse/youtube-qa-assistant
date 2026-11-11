@@ -25,33 +25,31 @@ load_dotenv(
 class EmailService:
 
     def __init__(self):
-        raw_username = os.getenv("MAIL_USERNAME") or settings.MAIL_USERNAME
+        raw_username = settings.MAIL_USERNAME or os.getenv("MAIL_USERNAME")
         mail_username = raw_username.strip() if raw_username else None
-        raw_password = os.getenv("MAIL_PASSWORD") or settings.MAIL_PASSWORD
+        raw_password = settings.MAIL_PASSWORD or os.getenv("MAIL_PASSWORD")
         # Sanitize whitespace/spaces from passwords (such as Google 4x4 app passwords)
         mail_password = raw_password.strip().replace(" ", "") if raw_password else None
-        raw_from = os.getenv("MAIL_FROM") or settings.MAIL_FROM or "noreply@ytgenius.ai"
+        raw_from = settings.MAIL_FROM or os.getenv("MAIL_FROM") or "noreply@ytgenius.ai"
         mail_from = raw_from.strip()
-        raw_server = os.getenv("MAIL_SERVER") or settings.MAIL_SERVER or "smtp.gmail.com"
+        raw_server = settings.MAIL_SERVER or os.getenv("MAIL_SERVER") or "smtp.gmail.com"
         mail_server = raw_server.strip()
 
         try:
-            port_val = os.getenv("MAIL_PORT") or settings.MAIL_PORT or "587"
+            port_val = settings.MAIL_PORT or os.getenv("MAIL_PORT") or "587"
             mail_port = int(port_val)
         except (ValueError, TypeError):
             mail_port = 587
 
-        env_starttls = os.getenv("MAIL_STARTTLS")
         raw_starttls = (
-            (env_starttls.lower() == "true")
-            if env_starttls is not None
-            else (settings.MAIL_STARTTLS if settings.MAIL_STARTTLS is not None else True)
+            settings.MAIL_STARTTLS
+            if settings.MAIL_STARTTLS is not None
+            else (os.getenv("MAIL_STARTTLS", "true").lower() == "true")
         )
-        env_ssl_tls = os.getenv("MAIL_SSL_TLS")
         raw_ssl_tls = (
-            (env_ssl_tls.lower() == "true")
-            if env_ssl_tls is not None
-            else (settings.MAIL_SSL_TLS if settings.MAIL_SSL_TLS is not None else False)
+            settings.MAIL_SSL_TLS
+            if settings.MAIL_SSL_TLS is not None
+            else (os.getenv("MAIL_SSL_TLS", "false").lower() == "true")
         )
 
         # Enforce valid TLS protocol per port to prevent mutually exclusive flag conflicts
@@ -162,6 +160,41 @@ YtGenius Team
         else:
             logger.info(
                 "SMTP client not configured; skipped delivering verification email to %s",
+                email,
+            )
+            return False
+
+    async def send_login_otp_email(
+        self,
+        email: str,
+        otp: str,
+        expires_minutes: int = 5,
+    ) -> bool:
+        message = MessageSchema(
+            subject=f"Your YtGenius verification code: {otp}",
+            recipients=[email],
+            body=f"""Hello,
+
+Your single-use verification code for YtGenius is:
+
+{otp}
+
+This code will expire in {expires_minutes} minutes.
+
+If you did not request this login code, you can safely ignore this email.
+
+Regards,
+YtGenius Team
+""",
+            subtype=MessageType.plain,
+        )
+
+        if self.fastmail is not None:
+            await self.fastmail.send_message(message)
+            return True
+        else:
+            logger.info(
+                "SMTP client not configured; skipped delivering login OTP email to %s",
                 email,
             )
             return False

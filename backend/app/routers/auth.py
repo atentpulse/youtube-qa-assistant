@@ -39,6 +39,9 @@ from app.schemas.auth import (
     ForgotPasswordRequest,
     ResetPasswordRequest,
     OAuthExchangeRequest,
+    SendOTPRequest,
+    SendOTPResponse,
+    VerifyOTPRequest,
 )
 from fastapi.security import HTTPAuthorizationCredentials
 
@@ -75,6 +78,10 @@ router = APIRouter(
 # --------------------------------
 
 from app.core import settings
+from app.core.rate_limiter import (
+    check_otp_send_rate_limit,
+    check_otp_verify_rate_limit,
+)
 
 FRONTEND_URL = (
     os.getenv("FRONTEND_URL")
@@ -340,6 +347,114 @@ def login_user(
             status_code=401,
             detail=str(error),
         )
+
+
+# --------------------------------
+# Send Login OTP
+# --------------------------------
+
+
+@router.post(
+    "/otp/send",
+    response_model=SendOTPResponse,
+    dependencies=[Depends(check_otp_send_rate_limit)],
+)
+async def send_login_otp(
+    request: SendOTPRequest,
+    db: Session = Depends(get_db),
+):
+    clean_email = str(request.email).strip().lower()
+    try:
+        raw_otp, cooldown = auth_service.send_login_otp(
+            db=db,
+            email=clean_email,
+        )
+
+        try:
+            if not email_service.is_configured and os.getenv("TESTING") != "1":
+                raise HTTPException(
+                    status_code=503,
+                    detail="Email delivery service is not configured on this server. Please check SMTP settings.",
+                )
+            sent = await email_service.send_login_otp_email(
+                email=clean_email,
+                otp=raw_otp,
+                expires_minutes=5,
+            )
+            if not sent and os.getenv("TESTING") != "1":
+                raise HTTPException(
+                    status_code=503,
+                    detail="Failed to send verification code. Please check email configuration or try again later.",
+                )
+        except ConnectionErrors as conn_err:
+            logger.error(
+                "SMTP connection error sending login OTP email to %s: %s",
+                clean_email,
+                type(conn_err).__name__,
+            )
+            raise HTTPException(
+                status_code=503,
+                detail="Failed to connect to email provider. Please try again later.",
+            )
+        except HTTPException:
+            raise
+        except Exception as mail_err:
+            logger.error(
+                "Failed to send login OTP email to %s: %s",
+                clean_email,
+                type(mail_err).__name__,
+            )
+            raise HTTPException(
+                status_code=503,
+                detail="Failed to send verification code. Please check email configuration or try again later.",
+            )
+
+        return {
+            "message": "If this email is valid, a 6-digit login code has been sent.",
+            "cooldown_seconds": cooldown,
+        }
+    except ValueError as err:
+        err_msg = str(err)
+        if "wait" in err_msg.lower():
+            raise HTTPException(status_code=429, detail=err_msg)
+        raise HTTPException(status_code=400, detail=err_msg)
+
+
+# --------------------------------
+# Verify Login OTP
+# --------------------------------
+
+
+@router.post(
+    "/otp/verify",
+    response_model=TokenResponse,
+    dependencies=[Depends(check_otp_verify_rate_limit)],
+)
+def verify_login_otp(
+    request: VerifyOTPRequest,
+    db: Session = Depends(get_db),
+):
+    clean_email = str(request.email).strip().lower()
+    clean_otp = str(request.otp).strip()
+    try:
+        user, access_token, refresh_token = auth_service.verify_login_otp(
+            db=db,
+            email=clean_email,
+            otp=clean_otp,
+        )
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+        }
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        )
+
+
+# -------------------------------
 
 
 # --------------------------------

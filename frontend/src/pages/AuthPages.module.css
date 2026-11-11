@@ -213,3 +213,185 @@
     border-radius: var(--radius-md, 10px);
   }
 }
+
+.primaryButton {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--accent-red, #ff0033);
+  border: none;
+  border-radius: var(--radius-sm, 6px);
+  padding: 11px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+  cursor: pointer;
+  transition: opacity var(--duration-fast, 150ms) ease, transform var(--duration-fast, 150ms) ease;
+  min-height: 44px;
+}
+
+.primaryButton:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.primaryButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0;
+  width: 100%;
+}
+
+.dividerLine {
+  flex: 1;
+  height: 1px;
+  background-color: var(--border-default, #303030);
+}
+
+.dividerText {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted, #717171);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.emailInput {
+  width: 100%;
+  padding: 11px 14px;
+  background: var(--bg-surface-2, #212121);
+  border: 1px solid var(--border-default, #303030);
+  border-radius: var(--radius-sm, 6px);
+  color: var(--text-primary, #f1f1f1);
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color var(--duration-fast, 150ms) ease, box-shadow var(--duration-fast, 150ms) ease;
+  box-sizing: border-box;
+}
+
+.emailInput:focus {
+  outline: none;
+  border-color: var(--border-hover, #606060);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.08);
+}
+
+.continueEmailButton {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--bg-surface-3, #2a2a2a);
+  border: 1px solid var(--border-default, #383838);
+  border-radius: var(--radius-sm, 6px);
+  padding: 11px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #f1f1f1);
+  cursor: pointer;
+  transition: background-color var(--duration-fast, 150ms) ease, border-color var(--duration-fast, 150ms) ease, transform var(--duration-fast, 150ms) ease;
+  min-height: 44px;
+  margin-top: 10px;
+}
+
+.continueEmailButton:hover:not(:disabled) {
+  background: #343434;
+  border-color: #4a4a4a;
+  transform: translateY(-1px);
+}
+
+.continueEmailButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.otpInput {
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--bg-surface-2, #212121);
+  border: 1px solid var(--border-default, #303030);
+  border-radius: var(--radius-sm, 6px);
+  color: var(--text-primary, #f1f1f1);
+  font-size: 22px;
+  font-family: var(--font-mono, monospace);
+  letter-spacing: 0.35em;
+  text-align: center;
+  transition: border-color var(--duration-fast, 150ms) ease, box-shadow var(--duration-fast, 150ms) ease;
+  box-sizing: border-box;
+}
+
+.otpInput:focus {
+  outline: none;
+  border-color: var(--accent-red, #ff0033);
+  box-shadow: 0 0 0 2px rgba(255, 0, 51, 0.2);
+}
+
+.otpInput::placeholder {
+  letter-spacing: 0.2em;
+  font-size: 16px;
+  color: var(--text-muted, #555555);
+}
+
+.otpActions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.resendText {
+  color: var(--text-muted, #717171);
+  font-size: 12.5px;
+}
+
+.resendLink {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text-primary, #f1f1f1);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: underline;
+  transition: color var(--duration-fast, 150ms) ease;
+}
+
+.resendLink:hover:not(:disabled) {
+  color: var(--accent-red, #ff0033);
+}
+
+.resendLink:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
+.changeEmailButton {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text-secondary, #aaaaaa);
+  font-size: 12.5px;
+  cursor: pointer;
+  text-decoration: underline;
+  transition: color var(--duration-fast, 150ms) ease;
+}
+
+.changeEmailButton:hover {
+  color: var(--text-primary, #f1f1f1);
+}
+
+.emailDisplay {
+  color: var(--text-primary, #f1f1f1);
+  font-weight: 600;
+  word-break: break-all;
+}

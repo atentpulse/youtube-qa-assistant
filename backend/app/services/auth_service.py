@@ -7,6 +7,7 @@ from app.auth.password import hash_password, verify_password
 
 from app.auth.jwt import (
     create_access_token,
+    create_refresh_token,
 )
 
 from datetime import datetime, timedelta, timezone
@@ -20,6 +21,9 @@ from app.auth.email_verification import (
     hash_verification_token,
 )
 from app.models.email_verification_token import EmailVerificationToken
+
+from app.auth.otp import generate_otp_code, hash_otp_code, verify_otp_code
+from app.models.email_otp import EmailOTP
 
 
 class AuthService:
@@ -319,3 +323,160 @@ class AuthService:
         verification_token.used_at = now
 
         db.commit()
+
+    def send_login_otp(
+        self,
+        db: Session,
+        email: str,
+    ) -> tuple[str, int]:
+        """Generate a 6-digit OTP, store its HMAC hash, and return (raw_otp, cooldown_seconds).
+
+        Enforces a 60-second resend cooldown and invalidates previous unused codes.
+        """
+        clean_email = email.strip().lower()
+        now = datetime.now(timezone.utc)
+
+        # Check resend cooldown
+        recent_otp = (
+            db.query(EmailOTP)
+            .filter(EmailOTP.email == clean_email)
+            .order_by(EmailOTP.created_at.desc())
+            .first()
+        )
+        if recent_otp:
+            created_at = recent_otp.created_at
+            if created_at.tzinfo is None:
+                created_at = created_at.replace(tzinfo=timezone.utc)
+            elapsed = (now - created_at).total_seconds()
+            if elapsed < 60.0:
+                cooldown_remaining = max(1, int(60.0 - elapsed))
+                raise ValueError(
+                    f"Please wait {cooldown_remaining} seconds before requesting another code."
+                )
+
+        # Invalidate previous unused OTPs for this email address
+        db.query(EmailOTP).filter(
+            EmailOTP.email == clean_email,
+            EmailOTP.used_at.is_(None),
+        ).update({EmailOTP.used_at: now}, synchronize_session=False)
+
+        # Generate cryptographically secure 6-digit code and store its hash
+        raw_otp = generate_otp_code()
+        otp_hash = hash_otp_code(clean_email, raw_otp)
+        expires_at = now + timedelta(minutes=5)
+
+        otp_record = EmailOTP(
+            email=clean_email,
+            otp_hash=otp_hash,
+            expires_at=expires_at,
+            attempts=0,
+            max_attempts=5,
+        )
+        db.add(otp_record)
+        db.commit()
+
+        return raw_otp, 60
+
+    def verify_login_otp(
+        self,
+        db: Session,
+        email: str,
+        otp: str,
+    ) -> tuple[User, str, str]:
+        """Verify the 6-digit OTP code against the stored hash and authenticate or register user.
+
+        Returns (user, access_token, refresh_token).
+        """
+        clean_email = email.strip().lower()
+        clean_otp = otp.strip()
+        now = datetime.now(timezone.utc)
+
+        active_otp = (
+            db.query(EmailOTP)
+            .filter(
+                EmailOTP.email == clean_email,
+                EmailOTP.used_at.is_(None),
+            )
+            .order_by(EmailOTP.created_at.desc())
+            .first()
+        )
+
+        if not active_otp:
+            raise ValueError("Invalid or expired login code. Please request a new code.")
+
+        # Check expiration
+        expires_at = active_otp.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+        if expires_at <= now:
+            active_otp.used_at = now
+            db.commit()
+            raise ValueError("Login code has expired. Please request a new code.")
+
+        # Check attempt limits
+        if active_otp.attempts >= active_otp.max_attempts:
+            active_otp.used_at = now
+            db.commit()
+            raise ValueError(
+                "Too many incorrect attempts. This code is now invalid. Please request a new one."
+            )
+
+        # Verify code
+        if not verify_otp_code(clean_email, clean_otp, active_otp.otp_hash):
+            active_otp.attempts += 1
+            if active_otp.attempts >= active_otp.max_attempts:
+                active_otp.used_at = now
+                db.commit()
+                raise ValueError(
+                    "Too many incorrect attempts. This code is now invalid. Please request a new one."
+                )
+            remaining = active_otp.max_attempts - active_otp.attempts
+            db.commit()
+            raise ValueError(f"Invalid login code. {remaining} attempt(s) remaining.")
+
+        # Atomically consume the OTP
+        updated = (
+            db.query(EmailOTP)
+            .filter(
+                EmailOTP.id == active_otp.id,
+                EmailOTP.used_at.is_(None),
+            )
+            .update({EmailOTP.used_at: now}, synchronize_session="fetch")
+        )
+        if updated == 0:
+            raise ValueError("Login code has already been used. Please request a new one.")
+
+        # Existing account or new account creation
+        user = db.query(User).filter(func.lower(User.email) == clean_email).first()
+
+        if user:
+            # Preserve existing user, ensure email is verified
+            if not user.email_verified:
+                user.email_verified = True
+        else:
+            # New user creation
+            username = clean_email.split("@")[0][:100]
+            user = User(
+                username=username,
+                email=clean_email,
+                password_hash=None,
+                auth_provider="email_otp",
+                email_verified=True,
+            )
+            db.add(user)
+
+        db.commit()
+        db.refresh(user)
+
+        # Generate JWT session tokens
+        access_token = create_access_token(
+            user_id=user.id,
+            token_version=user.token_version or 1,
+        )
+        refresh_token = create_refresh_token(
+            user_id=user.id,
+            token_version=user.token_version or 1,
+        )
+
+        return user, access_token, refresh_token
