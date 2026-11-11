@@ -1,12 +1,12 @@
-# VidMind 2.0 — Implementation Progress & State Checkpoint
+# YtGenius 2.0 — Implementation Progress & State Checkpoint
 
 ## 1. Project Metadata
-- **Project**: VidMind — AI-powered YouTube Video Q&A Assistant (Backend v2.0)
-- **Primary Repository**: `C:\Users\ashik\OneDrive\Desktop\youtube-qa-assistant` (`rajashik-web/vidmind` on `main`)
+- **Project**: YtGenius — AI-powered YouTube Video Q&A Assistant (Backend v2.0)
+- **Primary Repository**: `C:\Users\ashik\OneDrive\Desktop\youtube-qa-assistant` (`rajashik-web/youtube-qa-assistant` on `main`)
 - **Protocol File**: [`AGENTS.md`](file:///c:/Users/ashik/OneDrive/Desktop/youtube-qa-assistant/AGENTS.md)
-- **Current Phase**: **Phase 4: Gmail SMTP Registration Diagnostics & Hardening COMPLETED**
-- **Last Updated**: 2026-11-02 15:30 IST
-- **Verification Status**: **60/60 Automated Tests Passing (100%) + Live Gmail SMTP Verified**
+- **Current Phase**: **Phase 1: Backend Production Hardening & Release-Readiness Audit COMPLETED**
+- **Last Updated**: 2026-11-11 14:35 IST
+- **Verification Status**: **158/158 Automated Backend Tests Passing (100% Historical Baseline) + 20/20 Frontend Unit Tests Passing (100%)**
 
 ---
 
@@ -28,6 +28,11 @@
 | **Phase 2: Live AI** | Core AI Pipeline Live Verification | **COMPLETE** | Tested full pipeline against real dependencies (YouTube API, Qdrant Cloud cluster in AWS sa-east-1, Groq LLM `openai/gpt-oss-20b`, and live PostgreSQL). Verified 16/16 steps (100% pass rate). |
 | **Phase 3: API Contracts** | API Contract Verification & Alignment | **COMPLETE** | Inspected all 17 REST endpoints, resolved `UserResponse` schema omission (`email_verified`, `created_at`), verified citation sources and confirmed no follow-up suggestions generated, added 8 contract regression tests (54/54 passed). |
 | **Phase 4: Gmail SMTP** | SMTP Registration Diagnostics & Hardening | **COMPLETE** | Resolved Gmail SMTP handshake failure: sanitized Google 4x4 app password whitespace, enforced mutually exclusive TLS modes per port (465 vs 587), updated `AuthService.register_user` to permit retry for unverified users, and wrapped SMTP calls in HTTP 503 error handlers with zero credential leakage. Added 5 tests (59/59 passed). |
+| **Phase 1 Final: Passwordless OTP** | Email OTP & Claude-style Login UI | **COMPLETE** | Added passwordless 6-digit OTP generation, SHA-256 hashing, rate limiting, and Alembic migration `a1b2c3d4e5f6`. Frontend Claude-style dark UI. Committed in `fdddc96`. Verified in [`tests/test_otp_auth.py`](file:///tests/test_otp_auth.py) and frontend unit tests. |
+| **Phase 1 Final: Hardening & Vector Parity** | JWT Algorithm Lockdown & Qdrant Dimension Parity | **COMPLETE** | Added JWT algorithm validation (`HS256`, `HS384`, `HS512` whitelist), non-destructive vector dimension checks in `EmbeddingService` and `QdrantVectorStore`, and truthful GitHub support channels across legal pages. 158 backend tests passing. |
+| **Commit 4: Legal & Footer** | Legal Pages and Shared Footer | **COMPLETE** | Committed `8165778`. Added Privacy, Terms, Disclaimer, Contact, Docs pages and shared Footer component with truthful disclosures on public GitHub issues. |
+| **Commit 5: Frontend Core & Auth** | Shell, Routing & Password Reset | **COMPLETE** | Committed `5d19bcc`. Added `VerifyEmailPage`, `ResetPasswordPage`, dark-theme persistence, storage key migration, and clean 20/20 test pass (`npm --prefix frontend test`). |
+| **Commit 6: Containerization** | Hardened Production Docker & Compose | **COMPLETE** | Committed `6bc1db7`. Multi-stage Python 3.12 Dockerfile with non-root user `ytgenius`, Debian-slim runtime with `libgomp1`, Linux `pywin32` exclusion, and loopback-bound Compose orchestration. Validated via `docker-compose config --quiet` (exit code 0). |
 
 ---
 
@@ -146,6 +151,30 @@
      - 84 vectors generated and uploaded across 2 batches (64 + 20) with 0 timeouts.
      - Video status in database updated to `processed` (`segments=2295`, `chunks=84`).
    - Verified end-to-end RAG question answering: retrieved relevant chunks, reranked with cross-encoder, and generated accurate context-grounded response via Groq LLM API.
+
+---
+
+## 7. Known Limitations & Operational Bounds
+
+1. **Process-Local Rate Limiting**:
+   - The sliding-window rate limiter (`app.core.rate_limiter.RateLimiter`) uses an in-memory dictionary.
+   - It is process-local and is **not distributed** across multiple Uvicorn workers or container replicas.
+   - Distributed cluster-wide rate limiting requires a centralized store such as Redis.
+2. **Docker Runtime Verification Boundary**:
+   - Docker Compose static configuration validation passed cleanly (`docker-compose config --quiet`, exit code `0`).
+   - However, because the local Docker daemon was unavailable on the Windows host during audit, Docker image builds (`docker build`) and live container startup (`docker compose up`) remain **unverified at runtime**.
+3. **Qdrant Collection Initialization on Boot**:
+   - `QdrantVectorStore.create_collection` catches errors during startup and logs a warning so backend boot is not blocked if Qdrant is still spinning up.
+   - It does **not automatically retry** collection creation on subsequent user queries; manual restart or subsequent API trigger is required if initial boot failed.
+4. **Qdrant Query Retries**:
+   - Ingestion (`add_documents`) implements a 3-attempt retry loop with linear backoff.
+   - However, query-time search (`search()`) has **no internal retry loop**; transient network timeouts propagate directly to the API handler.
+5. **Multi-Worker PyTorch Memory Allocation**:
+   - Running Uvicorn with 4 worker processes (`--workers 4`) creates 4 independent PyTorch + SentenceTransformer model instances in memory.
+   - Container environments should be allocated at least 2GB–3GB RAM to avoid Out-Of-Memory (OOM) termination.
+6. **Deferred Browser Extension**:
+   - The repository provides CORS regex whitelisting (`chrome-extension://*`) and unified REST endpoints.
+   - However, the Chrome Extension package itself remains **deferred** and is not bundled or implemented in the current repository scope.
 
 
 

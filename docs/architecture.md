@@ -1,10 +1,10 @@
-# VidMind 2.0 — Backend Architecture Specification
+# YtGenius 2.0 — Backend Architecture Specification
 
 ## 1. System Overview
 
-VidMind is an AI-powered YouTube video question-answering system. In VidMind 2.0, the backend serves two distinct client interfaces over a unified RESTful API:
-1. **Standalone React Web Application** (Vite + React)
-2. **VidMind Chrome Extension** (Side panel operating alongside YouTube player)
+YtGenius is an AI-powered YouTube video question-answering system. In YtGenius 2.0, the backend provides a unified RESTful API designed to serve:
+1. **Standalone React Web Application** (Vite + React) — *Primary active frontend implementation.*
+2. **YtGenius Chrome Extension** (Side panel operating alongside YouTube player) — *Deferred client roadmap item; backend provides dynamic CORS (`chrome-extension://*`) and endpoint compatibility, but the extension package is not included in the current repository implementation.*
 
 ```mermaid
 graph TD
@@ -63,7 +63,7 @@ graph TD
 - **Solution**: Decoupled video existence from user ownership via the `user_videos` association table.
   - Canonical metadata (`Video`) stores title, thumbnail, processing status, transcript segment count, and vector chunk count once.
   - Association table `user_videos(user_id, video_id)` tracks which users have added the video to their personal library.
-  - When User 2 submits an already-processed video, VidMind links User 2 immediately and returns `already_processed` without re-transcribing, re-embedding, or duplicating vectors in Qdrant.
+  - When User 2 submits an already-processed video, YtGenius links User 2 immediately and returns `already_processed` without re-transcribing, re-embedding, or duplicating vectors in Qdrant.
 
 ### 2.2 Reference-Counted Safe Video Deletion (Defect 2 Resolved)
 - **Problem**: In VidMind 1.0, when a user deleted a video, the backend immediately purged Qdrant vectors and cached answers, breaking retrieval for other users.
@@ -115,6 +115,17 @@ erDiagram
         datetime created_at
     }
 
+    email_otps {
+        int id PK
+        string email
+        string otp_hash
+        datetime expires_at
+        int attempts
+        int max_attempts
+        datetime used_at
+        datetime created_at
+    }
+
     videos {
         int id PK
         string video_id UK
@@ -162,3 +173,50 @@ erDiagram
         datetime created_at
     }
 ```
+
+---
+
+## 4. Containerization & Deployment Architecture
+
+YtGenius 2.0 provides production-ready Docker containerization managed via Docker Compose (`docker-compose.yml`):
+
+### 4.1 Multi-Stage Backend Dockerfile (`backend/Dockerfile`)
+- **Stage 1 (Builder)**: Base image `python:3.12-slim`.
+  - Installs compilation dependencies (`build-essential`, `libpq-dev`).
+  - Filters out Windows-specific `pywin32==312` from `requirements.txt` (`grep -iv "^pywin32"`) so Linux wheels compile cleanly without modifying committed repository manifests.
+  - Installs packages into `/root/.local`.
+- **Stage 2 (Runner)**: Base image `python:3.12-slim`.
+  - Installs runtime shared libraries: `libpq5` (PostgreSQL C client), `curl` (container health checks), and `libgomp1` (GNU OpenMP, required for PyTorch `torch` on Debian slim).
+  - Creates dedicated system user `ytgenius` with explicit home `/home/ytgenius` (`useradd -r -g ytgenius -m -d /home/ytgenius -s /sbin/nologin ytgenius`).
+  - Copies compiled wheels with ownership: `COPY --from=builder --chown=ytgenius:ytgenius /root/.local /home/ytgenius/.local`.
+  - Configures non-root environment: `ENV HOME=/home/ytgenius PYTHONUSERBASE=/home/ytgenius/.local PATH="/home/ytgenius/.local/bin:$PATH"`.
+  - Runs as `USER ytgenius`.
+  - Automatic migration and web startup: `CMD ["sh", "-c", "alembic -c alembic.ini upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4"]`.
+
+### 4.2 Multi-Service Topology (`docker-compose.yml`)
+- **`backend`**:
+  - Exposes port `${PORT:-8000}:8000`.
+  - Enforces mandatory environment variables (`POSTGRES_PASSWORD`, `SECRET_KEY`, `FRONTEND_URL`) using fail-fast syntax.
+  - Liveness probe: `curl -f http://localhost:8000/health/live`.
+  - Startup dependencies:
+    ```yaml
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    ```
+- **`postgres`**:
+  - Image: `postgres:16-alpine`.
+  - Ports: Bound strictly to `127.0.0.1:5432:5432` to prevent external network exposure.
+  - Volume: Named persistent volume `postgres_data:/var/lib/postgresql/data`.
+  - Healthcheck: `pg_isready -U ${POSTGRES_USER:-ytgenius} -d ${POSTGRES_DB:-ytgenius}`.
+- **`qdrant`**:
+  - Image: `qdrant/qdrant:v1.13.2`.
+  - Ports: Bound strictly to `127.0.0.1:6333:6333` and `127.0.0.1:6334:6334`.
+  - Volume: Named persistent volume `qdrant_data:/qdrant/storage`.
+  - Note: In managed cloud deployments, local `qdrant` service can be omitted and `QDRANT_URL` pointed to Qdrant Cloud.
+
+### 4.3 Verification Status & Runtime Boundaries
+- **Static Configuration Validation**: Passed cleanly via `docker-compose config --quiet` (exit code `0`).
+- **Runtime Validation Status**: **Unverified**. Because the local Docker daemon was unavailable during environment validation, image compilation (`docker build`) and live container execution (`docker compose up`) have not been verified at runtime.

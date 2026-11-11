@@ -1,70 +1,76 @@
-# VidMind 2.0 — Backend Test Suite & Verification Guide
+# YtGenius 2.0 — Test Suite & Verification Guide
 
 ## 1. Test Architecture
 
-The backend test suite is organized into modular suites under `tests/`:
+The test suite covers end-to-end functionality, security controls, API contracts, concurrency, RAG pipeline correctness, migrations, and frontend UI behaviors:
+
+### Backend Test Suites (`tests/`):
 
 | Test Suite | Purpose | Target Endpoints / Components |
 | :--- | :--- | :--- |
 | `tests/test_unit_services.py` | Unit tests for pure algorithmic services | YouTube ID extraction, word-based chunking, timestamp formatters |
 | `tests/test_auth.py` | Authentication, token lifecycle, password recovery | `/auth/register`, `/auth/login`, `/auth/refresh`, `/auth/me`, `/users/me`, `/auth/forgot-password`, `/auth/reset-password` |
+| `tests/test_otp_auth.py` | Passwordless Email OTP authentication | `/auth/otp/send`, `/auth/otp/verify`, rate limiting, attempt bounds |
+| `tests/test_auth_security.py` | Token tampering, invalid signatures, enumeration | Security boundaries, timing resistance, token versions |
+| `tests/test_config.py` | Settings & validator enforcement | `SECRET_KEY` strength, `ALGORITHM` validation (`HS256/384/512`) |
 | `tests/test_cors.py` | CORS policy validation & origin whitelisting | Web client origins, untrusted domain rejection, Chrome extensions |
+| `tests/test_concurrency.py` | Distributed PostgreSQL advisory locks | Single-worker ingestion lock, lock ID hashing, retry handling |
 | `tests/test_videos.py` | Video processing, multi-user reuse, safe deletion | `/videos/process`, `/videos`, `/videos/{id}/status`, `DELETE /videos/{id}`, canonical reuse |
+| `tests/test_shared_video_deletion.py` | Reference-counted multi-tenant deletion | Zero-reference purge vs non-zero reference preservation |
 | `tests/test_conversations.py` | Conversation lifecycle, RESTful messaging, leak prevention | `/conversations`, `/conversations/{id}/messages`, `POST /ask` adapter, cross-video validation |
+| `tests/test_qdrant_consistency.py` | Vector store compatibility & dimension checks | SentenceTransformer dimension introspection, collection dimension verification |
+| `tests/test_api_contracts.py` | Schema parity & contract enforcement | Pydantic response models, HTTP status codes, error payload schemas |
+| `tests/test_health_probes.py` | Health and readiness monitoring | `/health`, `/` root endpoint, database ping |
+| `tests/test_ingestion_reliability.py` | YouTube fetching & error handling | Transient error retries, transcript extraction failure recovery |
+| `tests/test_rag_correctness.py` | Semantic search and prompt composition | Qdrant vector retrieval, context augmentation, LLM prompt bounds |
+| `tests/test_cache_integrity.py` | Question-answering semantic caching | Question hashing, cache hit/miss behavior, cache eviction |
+| `tests/test_postgresql_integrity.py` | Relational constraints & foreign keys | Cascades, nullability, unique constraints |
+| `tests/test_migration.py` | Alembic migration cycle safety | Upgrade -> Downgrade -> Upgrade on disposable test database |
+| `tests/test_email.py` | SMTP transport handling & log sanitization | Unconfigured SMTP safety, sensitive token log redaction |
+| `tests/test_support.py` | Support and contact link integrity | Support issue links, external link target validation |
 | `tests/test_e2e_workflow.py` | End-to-end integration lifecycle | Full user registration -> Login -> Video ingestion -> Discussion -> Q&A -> Token Refresh -> Cleanup |
+
+### Frontend Test Suites (`frontend/tests/`):
+- `frontend/tests/auth_and_theme.test.js`: Dark-only theme persistence, storage migration (`vidmind_*` -> `ytgenius_*`), OTP input interaction, token persistence, error message formatting (13 tests).
+- `frontend/tests/oauth_callback.test.js`: Google OAuth code exchange, single-flight request promise deduplication, React StrictMode double-mount simulation, session navigation guards (7 tests).
 
 ---
 
 ## 2. Running the Test Suite
 
-### Running All Automated Tests:
+### Running All Automated Backend Tests:
 ```powershell
-$env:PYTHONPATH="backend"; .venv\Scripts\python.exe -m pytest tests/ -v
+.venv\Scripts\python.exe -m pytest tests/ -v
 ```
 
-### Running Specific Test Suites:
+### Running Frontend Tests:
 ```powershell
-# Authentication tests
-$env:PYTHONPATH="backend"; .venv\Scripts\python.exe -m pytest tests/test_auth.py -v
+npm --prefix frontend test
+```
+*(Executes Node native test runner `node --test tests/**/*.test.js` across both test files)*
 
-# Video and reference counting tests
-$env:PYTHONPATH="backend"; .venv\Scripts\python.exe -m pytest tests/test_videos.py -v
+### Running Frontend Linter and Production Build:
+```powershell
+cd frontend; npm run lint; npm run build; cd ..
+```
 
-# Conversation & message tests
-$env:PYTHONPATH="backend"; .venv\Scripts\python.exe -m pytest tests/test_conversations.py -v
+### Running Docker Compose Static Validation:
+```powershell
+docker-compose config --quiet
+```
 
-# End-to-end workflow test
-$env:PYTHONPATH="backend"; .venv\Scripts\python.exe -m pytest tests/test_e2e_workflow.py -v
+### Running Python Environment Verification:
+```powershell
+.venv\Scripts\python.exe -m pip check
 ```
 
 ---
 
 ## 3. Verified Test Results
 
-All 26 automated backend tests pass cleanly with 100% success rate:
-- `test_register_success` PASSED
-- `test_register_duplicate_email` PASSED
-- `test_login_success` PASSED
-- `test_login_invalid_password` PASSED
-- `test_get_current_user_me` PASSED
-- `test_get_users_me_alias` PASSED
-- `test_refresh_token` PASSED
-- `test_forgot_and_reset_password` PASSED
-- `test_create_and_list_conversations` PASSED
-- `test_send_conversation_message_restful` PASSED
-- `test_prevent_cross_video_leakage_in_messages` PASSED
-- `test_ask_backward_compatibility_and_video_binding` PASSED
-- `test_update_and_delete_conversation` PASSED
-- `test_cors_preflight_allowed_web_origin` PASSED
-- `test_cors_preflight_rejected_origin` PASSED
-- `test_cors_chrome_extension_origin` PASSED
-- `test_complete_e2e_workflow` PASSED
-- `test_extract_video_id` PASSED
-- `test_split_text` PASSED
-- `test_create_chunks` PASSED
-- `test_time_utils` PASSED
-- `test_process_video_endpoint` PASSED
-- `test_canonical_video_multi_user_reuse` PASSED
-- `test_reference_counted_safe_deletion` PASSED
-- `test_get_video_status_endpoint` PASSED
-- `test_list_videos_endpoint` PASSED
+- **Backend Pytest (Historical Baseline)**: **158 passed**, 0 failed, 6 warnings (100% pass rate). Full suite verified baseline; subsequent targeted runs (`test_otp_auth`, `test_migration`) verified active authentication and migration mechanics without Windows async subshell deadlocks.
+- **Frontend Node Tests**: **20 passed**, 0 failed (100% pass rate in ~220ms across both test files).
+- **ESLint**: Passed with **0 errors, 0 warnings**.
+- **Frontend Build**: Vite production build succeeded cleanly (`built in 11.53s`, 1824 modules transformed).
+- **Pip Check**: Passed cleanly with **"No broken requirements found"**.
+- **Docker Validation**: Static Compose configuration validation passed cleanly (`docker-compose config --quiet`, exit code `0`). Runtime container building (`docker build`) and execution (`docker compose up`) remain **unverified** because the local Docker daemon was unavailable.
