@@ -1,0 +1,95 @@
+services:
+  # ----------------------------------------------------------------------------
+  # YtGenius FastAPI Backend Service
+  # ----------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ytgenius-backend
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - "DATABASE_URL=postgresql://${POSTGRES_USER:-ytgenius}:${POSTGRES_PASSWORD:?Error: POSTGRES_PASSWORD must be explicitly provided}@postgres:5432/${POSTGRES_DB:-ytgenius}"
+      - "SECRET_KEY=${SECRET_KEY:?Error: SECRET_KEY must be explicitly provided}"
+      - SESSION_SECRET_KEY=${SESSION_SECRET_KEY:-}
+      # For Qdrant Cloud deployment, set QDRANT_URL=https://<cluster-id>.cloud.qdrant.io:6333
+      # and provide QDRANT_API_KEY. The local 'qdrant' container below can be omitted in that mode.
+      - QDRANT_URL=${QDRANT_URL:-http://qdrant:6333}
+      - QDRANT_API_KEY=${QDRANT_API_KEY:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - GROQ_MODEL=${GROQ_MODEL:-openai/gpt-oss-20b}
+      - "FRONTEND_URL=${FRONTEND_URL:?Error: FRONTEND_URL must be explicitly provided in production}"
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000}
+      - CHROME_EXTENSION_IDS=${CHROME_EXTENSION_IDS:-}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI:-http://localhost:8000/auth/google/callback}
+      - MAIL_USERNAME=${MAIL_USERNAME:-}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
+      - MAIL_FROM=${MAIL_FROM:-}
+      - MAIL_SERVER=${MAIL_SERVER:-smtp.gmail.com}
+      - MAIL_PORT=${MAIL_PORT:-587}
+      - DB_POOL_SIZE=${DB_POOL_SIZE:-10}
+      - DB_MAX_OVERFLOW=${DB_MAX_OVERFLOW:-20}
+      - DB_POOL_RECYCLE=${DB_POOL_RECYCLE:-1800}
+      - DB_POOL_TIMEOUT=${DB_POOL_TIMEOUT:-30}
+      - MAX_REQUEST_BODY_SIZE_BYTES=${MAX_REQUEST_BODY_SIZE_BYTES:-10485760}
+      - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-10}
+      - RATE_LIMIT_BURST=${RATE_LIMIT_BURST:-20}
+      - TRUSTED_PROXIES=${TRUSTED_PROXIES:-127.0.0.1,::1}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/live"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # ----------------------------------------------------------------------------
+  # PostgreSQL Database (Host ports bound strictly to 127.0.0.1 for security)
+  # ----------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: ytgenius-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ytgenius}
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Error: POSTGRES_PASSWORD must be explicitly provided}"
+      POSTGRES_DB: ${POSTGRES_DB:-ytgenius}
+    ports:
+      # Bound strictly to localhost to prevent direct external internet exposure
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ytgenius} -d ${POSTGRES_DB:-ytgenius}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------------------------------------------------
+  # Qdrant Vector Search Engine (Host ports bound strictly to 127.0.0.1 for security)
+  # NOTE: When connecting to managed Qdrant Cloud, this service and the backend's
+  # depends_on: qdrant entry may be safely commented out or omitted.
+  # ----------------------------------------------------------------------------
+  qdrant:
+    image: qdrant/qdrant:v1.13.2
+    container_name: ytgenius-qdrant
+    restart: unless-stopped
+    ports:
+      # Bound strictly to localhost to prevent direct external internet exposure
+      - "127.0.0.1:6333:6333"
+      - "127.0.0.1:6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+volumes:
+  postgres_data:
+  qdrant_data:
