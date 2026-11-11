@@ -71,3 +71,61 @@ def test_deletion_and_cleanup_idempotent():
     # Second delete (must succeed idempotently without error)
     store.delete_video(vid)
     assert store.count_video_chunks(vid) == 0
+
+
+def test_qdrant_dimension_matching_preserves_collection():
+    """Verify that calling create_collection with matching dimension preserves existing data."""
+    store = QdrantVectorStore(url=":memory:")
+    store.create_collection(vector_size=384)
+
+    vid = "match_dim_vid"
+    embeddings = [np.array([0.1] * 384)]
+    chunks = [{"video_id": vid, "text": "Preserved text", "start_time": 0.0, "end_time": 5.0}]
+    store.add_documents(embeddings, chunks)
+    assert store.count_video_chunks(vid) == 1
+
+    # Calling create_collection again with matching dimension
+    store.create_collection(vector_size=384)
+    # Existing data must remain completely intact
+    assert store.count_video_chunks(vid) == 1
+
+
+def test_qdrant_dimension_mismatch_rejects_and_preserves_collection():
+    """Verify that attempting to initialize collection with mismatching dimensions fails clearly and preserves data."""
+    store = QdrantVectorStore(url=":memory:")
+    store.create_collection(vector_size=384)
+
+    vid = "preserve_on_err_vid"
+    embeddings = [np.array([0.1] * 384)]
+    chunks = [{"video_id": vid, "text": "Preserved data", "start_time": 0.0, "end_time": 5.0}]
+    store.add_documents(embeddings, chunks)
+    assert store.count_video_chunks(vid) == 1
+
+    # Attempting to call create_collection with conflicting vector dimension must raise ValueError
+    with pytest.raises(ValueError, match="Qdrant collection dimension mismatch"):
+        store.create_collection(vector_size=512)
+
+    # Verify that existing collection and data were preserved without destructive recreation
+    assert store.count_video_chunks(vid) == 1
+
+
+def test_qdrant_add_documents_dimension_mismatch_raises_error(monkeypatch):
+    """Verify that adding documents with incorrect embedding dimension raises ValueError."""
+    store = QdrantVectorStore(url=":memory:")
+    store.create_collection(vector_size=384)
+
+    vid = "mismatch_dim_vid"
+    wrong_embeddings = [np.array([0.1] * 512)]
+    chunks = [{"video_id": vid, "text": "Mismatch text", "start_time": 0.0, "end_time": 5.0}]
+
+    with pytest.raises(ValueError, match="Embedding dimension mismatch"):
+        store.add_documents(wrong_embeddings, chunks)
+
+
+def test_rag_service_dimension_mismatch_raises_error(monkeypatch):
+    """Verify RAGService fails fast when model dimension does not match VECTOR_DIMENSION."""
+    from app.services.rag_service import RAGService
+    monkeypatch.setattr("app.services.rag_service.settings.VECTOR_DIMENSION", 512)
+
+    with pytest.raises(ValueError, match="Embedding model dimension mismatch"):
+        RAGService()

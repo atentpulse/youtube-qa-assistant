@@ -1,17 +1,25 @@
+import logging
 from sentence_transformers import CrossEncoder
+
+from app.core.config import settings
+
+logger = logging.getLogger("ytgenius.reranker")
 
 
 class RerankerService:
 
-    def __init__(self):
+    def __init__(self, model_name: str | None = None):
 
-        print("Loading reranker model...")
+        logger.info("Loading reranker model...")
 
-        self.model = CrossEncoder(
-            "cross-encoder/ms-marco-MiniLM-L-6-v2"
+        selected_model = (
+            model_name
+            or getattr(settings, "RERANKER_MODEL", None)
+            or "cross-encoder/ms-marco-MiniLM-L-6-v2"
         )
+        self.model = CrossEncoder(selected_model)
 
-        print("Reranker model loaded successfully.")
+        logger.info("Reranker model loaded successfully.")
 
 
     def rerank(

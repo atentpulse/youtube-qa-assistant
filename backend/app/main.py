@@ -1,7 +1,8 @@
 import os
+import logging
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
@@ -66,38 +67,113 @@ async def lifespan(app: FastAPI):
 # Create FastAPI app
 # --------------------------------
 
+is_production = (settings.ENVIRONMENT or "").strip().lower() in ("production", "prod")
+
 app = FastAPI(
     title="YtGenius — YouTube Video Q&A Assistant",
     description="YtGenius 2.0 Backend API",
     version="2.0.0",
     lifespan=lifespan,
+    docs_url=None if is_production else "/docs",
+    redoc_url=None if is_production else "/redoc",
+    openapi_url=None if is_production else "/openapi.json",
 )
+
+
+# --------------------------------
+# Request body size limit middleware
+# --------------------------------
+
+@app.middleware("http")
+async def limit_request_size(request: Request, call_next):
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            max_size = getattr(settings, "MAX_REQUEST_BODY_SIZE_BYTES", 10 * 1024 * 1024)
+            if int(content_length) > max_size:
+                return JSONResponse(
+                    status_code=413,
+                    content={"detail": "Request payload too large. Maximum allowed size is 10MB."},
+                )
+        except (ValueError, TypeError):
+            pass
+    try:
+        return await call_next(request)
+    except Exception as exc:
+        logging.getLogger(__name__).error(
+            "Unhandled server exception during %s %s: %s",
+            request.method,
+            request.url.path,
+            exc,
+            exc_info=True,
+        )
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "An internal server error occurred. Please try again later."},
+        )
 
 
 # --------------------------------
 # Session middleware (for Google OAuth)
 # --------------------------------
 
+session_secret = getattr(settings, "SESSION_SECRET_KEY", None) or settings.SECRET_KEY
+
 app.add_middleware(
     SessionMiddleware,
-    secret_key=settings.SECRET_KEY,
+    secret_key=session_secret,
+    https_only=is_production,
+    same_site="lax",
 )
 
 
 # --------------------------------
-# CORS configuration
+# Dynamic CORS configuration
 # --------------------------------
+
+class DynamicCORSMiddleware(CORSMiddleware):
+    """Subclass of Starlette's CORSMiddleware that evaluates origins against
+
+    settings.all_cors_origins dynamically, ensuring dynamically added
+    extension IDs or origins in settings are honored without accepting arbitrary
+    extensions.
+    """
+
+    def is_allowed_origin(self, origin: str) -> bool:
+        if origin in settings.all_cors_origins:
+            return True
+        return super().is_allowed_origin(origin)
+
 
 origins = settings.all_cors_origins
 
 app.add_middleware(
-    CORSMiddleware,
+    DynamicCORSMiddleware,
     allow_origins=origins,
-    allow_origin_regex=r"^chrome-extension://[a-zA-Z0-9_-]+$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# --------------------------------
+# Global exception handler
+# Guarantees CORS headers are attached on unhandled exceptions
+# --------------------------------
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logging.getLogger(__name__).error(
+        "Unhandled server exception during %s %s: %s",
+        request.method,
+        request.url.path,
+        exc,
+        exc_info=True,
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "An internal server error occurred. Please try again later."},
+    )
 
 
 # --------------------------------
@@ -178,7 +254,8 @@ def health_ready(db: Session = Depends(get_db)):
         db.execute(text("SELECT 1"))
         checks["database"] = "ok"
     except Exception as exc:
-        checks["database"] = f"unhealthy: {exc}"
+        logging.getLogger(__name__).error("Database readiness check failed: %s", exc, exc_info=True)
+        checks["database"] = "unhealthy: database check failed"
 
     try:
         qdrant_store = QdrantVectorStore()
@@ -187,7 +264,8 @@ def health_ready(db: Session = Depends(get_db)):
         else:
             checks["qdrant"] = "unhealthy: ping failed"
     except Exception as exc:
-        checks["qdrant"] = f"unhealthy: {exc}"
+        logging.getLogger(__name__).error("Qdrant readiness check failed: %s", exc, exc_info=True)
+        checks["qdrant"] = "unhealthy: vector store check failed"
 
     all_ok = all(v == "ok" for v in checks.values())
     status_code = 200 if all_ok else 503

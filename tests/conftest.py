@@ -10,6 +10,7 @@ os.environ["SECRET_KEY"] = "test-secret-key-for-unit-testing-32-chars-long"
 mock_st = MagicMock()
 mock_model = MagicMock()
 mock_model.encode.return_value = [0.1] * 384
+mock_model.get_sentence_embedding_dimension.return_value = 384
 mock_st.SentenceTransformer.return_value = mock_model
 sys.modules["sentence_transformers"] = mock_st
 sys.modules["sentence_transformers.cross_encoder"] = MagicMock()

@@ -22,6 +22,7 @@ from app.services.rag_service import RAGService
 from app.services.video_storage_service import VideoStorageService
 
 from app.dependencies import get_rag_service
+from app.core.rate_limiter import check_video_process_rate_limit
 
 
 router = APIRouter(
@@ -36,6 +37,7 @@ router = APIRouter(
 @router.post(
     "/videos/process",
     response_model=ProcessVideoResponse,
+    dependencies=[Depends(check_video_process_rate_limit)],
 )
 def process_video(
     request: ProcessVideoRequest,

@@ -53,7 +53,7 @@ async def test_send_conversation_message_restful(async_client, db, test_user, au
     c_resp = await async_client.post(
         "/conversations",
         headers=auth_headers,
-        json={"title": "VidMind Q&A", "video_id": "vid_qa_1"},
+        json={"title": "YtGenius Q&A", "video_id": "vid_qa_1"},
     )
     conv_id = c_resp.json()["id"]
 

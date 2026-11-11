@@ -3,8 +3,11 @@ from urllib.parse import (
     urlparse,
 )
 
+import logging
 import time
 import requests
+
+logger = logging.getLogger("ytgenius.youtube")
 
 from youtube_transcript_api import (
     NoTranscriptFound,
@@ -100,9 +103,9 @@ def fetch_video_metadata(
 
     except requests.RequestException as error:
 
-        print(
-            f"Could not fetch video metadata: "
-            f"{error}"
+        logger.warning(
+            "Could not fetch video metadata: %s",
+            error,
         )
 
         return {
@@ -185,8 +188,11 @@ def fetch_transcript(
             )
         except Exception as error:
             last_error = error
-            print(
-                f"Transcript attempt {attempt + 1}/{retries} failed: {error}"
+            logger.warning(
+                "Transcript attempt %d/%d failed: %s",
+                attempt + 1,
+                retries,
+                error,
             )
             if attempt < retries - 1:
                 time.sleep(2 * (attempt + 1))

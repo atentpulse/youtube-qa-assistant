@@ -1,12 +1,22 @@
+import json
+import logging
 import os
 import re
-import json
+import time
 
 from dotenv import load_dotenv
-from groq import Groq
+from groq import (
+    APIConnectionError,
+    APITimeoutError,
+    Groq,
+    InternalServerError,
+    RateLimitError,
+)
+
 from app.core.config import settings
 
 load_dotenv()
+logger = logging.getLogger("ytgenius.llm")
 
 
 class LLMService:
@@ -14,15 +24,36 @@ class LLMService:
     NOT_FOUND_MESSAGE = "I could not find the answer in the video transcript."
 
     def __init__(self):
-
-        api_key = os.getenv("GROQ_API_KEY")
+        api_key = settings.GROQ_API_KEY or os.getenv("GROQ_API_KEY")
 
         if not api_key:
+            raise ValueError("GROQ_API_KEY is not configured in settings")
 
-            raise ValueError("GROQ_API_KEY is not set in the .env file")
-
-        self.client = Groq(api_key=api_key)
+        self.client = Groq(api_key=api_key, timeout=30.0)
         self.model = settings.GROQ_MODEL or "openai/gpt-oss-20b"
+
+    def _create_completion_with_retry(self, max_retries: int = 3, **kwargs):
+        """Execute Groq chat completion with exponential backoff retry for transient errors."""
+        for attempt in range(max_retries):
+            try:
+                return self.client.chat.completions.create(**kwargs)
+            except (RateLimitError, APITimeoutError, APIConnectionError, InternalServerError) as exc:
+                if attempt == max_retries - 1:
+                    logger.error(
+                        "Groq chat completion failed after %d attempts: %s",
+                        max_retries,
+                        exc,
+                    )
+                    raise
+                wait_time = 1.0 * (attempt + 1)
+                logger.warning(
+                    "Groq completion attempt %d/%d failed: %s; retrying in %.1fs...",
+                    attempt + 1,
+                    max_retries,
+                    exc,
+                    wait_time,
+                )
+                time.sleep(wait_time)
 
     def needs_question_rewrite(
         self,
@@ -153,7 +184,7 @@ CURRENT QUESTION:
 
 REWRITTEN STANDALONE QUESTION:"""
 
-        response = self.client.chat.completions.create(
+        response = self._create_completion_with_retry(
             model=self.model,
             messages=[
                 {
@@ -295,7 +326,7 @@ Do not use conversation history as a source of facts.
 RETURN JSON:
 """
 
-        response = self.client.chat.completions.create(
+        response = self._create_completion_with_retry(
             model=self.model,
             messages=[
                 {

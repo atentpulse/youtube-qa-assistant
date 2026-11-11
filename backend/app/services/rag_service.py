@@ -43,6 +43,7 @@ from app.services.reranker_service import (
 from app.services.lock_service import (
     VideoIngestionLock,
 )
+from app.core.config import settings
 
 import logging
 import threading
@@ -66,8 +67,16 @@ class RAGService:
         self._in_flight_videos: set[str] = set()
         self._in_flight_lock = threading.Lock()
 
+        configured_dim = getattr(settings, "VECTOR_DIMENSION", 384)
+        model_dim = getattr(self.embedding_service, "dimension", configured_dim)
+        if model_dim != configured_dim:
+            raise ValueError(
+                f"Embedding model dimension mismatch: Selected model produces {model_dim}-dimensional vectors, "
+                f"but VECTOR_DIMENSION is configured as {configured_dim}. These must match."
+            )
+
         self.vector_store.create_collection(
-            vector_size=384
+            vector_size=configured_dim
         )
 
     def process_video(
@@ -179,8 +188,9 @@ class RAGService:
         db = SessionLocal()
         lock = VideoIngestionLock(db, video_id)
         if not lock.acquire():
-            print(
-                f"Video {video_id} is already being ingested by another process or worker; skipping background task."
+            logger.info(
+                "Video %s is already being ingested by another process or worker; skipping background task.",
+                video_id,
             )
             db.close()
             return
@@ -271,10 +281,7 @@ class RAGService:
                 chunks=len(chunks),
             )
 
-            print(
-                f"Video processed successfully: "
-                f"{video_id}"
-            )
+            logger.info("Video processed successfully: %s", video_id)
 
         except Exception as error:
 
@@ -283,10 +290,6 @@ class RAGService:
                 video_id,
                 error,
                 exc_info=True,
-            )
-            print(
-                f"Video processing failed: "
-                f"{error}"
             )
 
             # Clean partial vectors safely
@@ -415,11 +418,11 @@ class RAGService:
                         model_id=getattr(self.llm_service, "model", "default"),
                     )
 
-                    print("Removed old not-found cache entry.")
+                    logger.debug("Removed old not-found cache entry for video %s.", video_id)
 
                 else:
 
-                    print("Answer returned from cache!")
+                    logger.debug("Answer returned from cache for video %s.", video_id)
 
                     return cached_answer
 
@@ -442,11 +445,11 @@ class RAGService:
                 question=question,
                 conversation_context=rewrite_context,
             )
-            print("Question rewritten for retrieval.")
+            logger.debug("Question rewritten for retrieval.")
         else:
-            print("Original question used for retrieval.")
+            logger.debug("Original question used for retrieval.")
 
-        print(f"\nRetrieval query: " f"{retrieval_query}\n")
+        logger.debug("Retrieval query: %s", retrieval_query)
 
         # --------------------------------
         # 3. Embed question
@@ -469,14 +472,7 @@ class RAGService:
             video_id=video_id,
             top_k=top_k,
         )
-        print("\n--- RETRIEVED CONTEXT ---")
-
-        for index, result in enumerate(results, start=1):
-            print(f"\nRESULT {index}")
-            print(f"Score: {result['score']:.4f}")
-            print(f"Text: {result['text'][:500]}")
-
-        print("\n-------------------------\n")
+        logger.debug("Retrieved %d candidates from Qdrant for video %s", len(results), video_id)
 
         search_time = time.perf_counter() - search_start
 
@@ -498,21 +494,7 @@ class RAGService:
 
         reranker_time = time.perf_counter() - reranker_start
 
-        print("\n--- RERANKING RESULTS ---")
-
-        for index, result in enumerate(
-            reranked_results,
-            start=1,
-        ):
-            print(f"\nResult {index}")
-
-            print(f"Qdrant score: " f"{result['score']:.4f}")
-
-            print(f"Rerank score: " f"{result['rerank_score']:.4f}")
-
-            print(f"Text: " f"{result['text'][:300]}")
-
-        print("\n-------------------------\n")
+        logger.debug("Reranked %d candidates to %d for video %s", len(relevant_results), len(reranked_results), video_id)
 
         answer_results = reranked_results
 
@@ -520,19 +502,13 @@ class RAGService:
 
             total_time = time.perf_counter() - total_start
 
-            print("\n--- RAG PERFORMANCE ---")
-
-            print(f"Embedding: {embedding_time:.3f}s")
-
-            print(f"Qdrant:    {search_time:.3f}s")
-
-            print(f"Reranker:  {reranker_time:.3f}s")
-
-            print("LLM:       0.000s")
-
-            print(f"Total:     {total_time:.3f}s")
-
-            print("-----------------------\n")
+            logger.info(
+                "RAG performance (no results): embedding=%.3fs qdrant=%.3fs reranker=%.3fs llm=0.000s total=%.3fs",
+                embedding_time,
+                search_time,
+                reranker_time,
+                total_time,
+            )
 
             return {
                 "answer": not_found_message,
@@ -595,15 +571,14 @@ class RAGService:
 
             total_time = time.perf_counter() - total_start
 
-            print("\n--- RAG PERFORMANCE ---")
-            print(f"Embedding: {embedding_time:.3f}s")
-            print(f"Qdrant:    {search_time:.3f}s")
-
-            print(f"Reranker:  {reranker_time:.3f}s")
-
-            print(f"LLM:       {llm_time:.3f}s")
-            print(f"Total:     {total_time:.3f}s")
-            print("-----------------------\n")
+            logger.info(
+                "RAG performance (not found): embedding=%.3fs qdrant=%.3fs reranker=%.3fs llm=%.3fs total=%.3fs",
+                embedding_time,
+                search_time,
+                reranker_time,
+                llm_time,
+                total_time,
+            )
 
             return {
                 "answer": not_found_message,
@@ -701,19 +676,14 @@ class RAGService:
 
         total_time = time.perf_counter() - total_start
 
-        print("\n--- RAG PERFORMANCE ---")
-
-        print(f"Embedding: {embedding_time:.3f}s")
-
-        print(f"Qdrant:    {search_time:.3f}s")
-
-        print(f"Reranker:  {reranker_time:.3f}s")
-
-        print(f"LLM:       {llm_time:.3f}s")
-
-        print(f"Total:     {total_time:.3f}s")
-
-        print("-----------------------\n")
+        logger.info(
+            "RAG performance: embedding=%.3fs qdrant=%.3fs reranker=%.3fs llm=%.3fs total=%.3fs",
+            embedding_time,
+            search_time,
+            reranker_time,
+            llm_time,
+            total_time,
+        )
 
         # --------------------------------
         # 11. Return response

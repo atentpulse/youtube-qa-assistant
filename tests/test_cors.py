@@ -31,3 +31,15 @@ def test_cors_chrome_extension_origin(client):
     response = client.options("/health", headers=headers)
     assert response.status_code == 200
     assert response.headers.get("access-control-allow-origin") == "chrome-extension://abcdefghijklmno123456"
+
+
+def test_cors_chrome_extension_rejected_when_not_in_settings(client):
+    from app.core import settings
+    settings.CHROME_EXTENSION_IDS = ["allowed_ext_123"]
+
+    headers = {
+        "Origin": "chrome-extension://unauthorized_extension_999",
+        "Access-Control-Request-Method": "GET",
+    }
+    response = client.options("/health", headers=headers)
+    assert response.headers.get("access-control-allow-origin") != "chrome-extension://unauthorized_extension_999"

@@ -35,6 +35,7 @@ from app.services.rag_service import (
     RAGService,
 )
 from app.dependencies import get_rag_service
+from app.core.rate_limiter import check_ai_generation_rate_limit
 
 
 router = APIRouter(
@@ -255,6 +256,7 @@ def get_conversation_messages(
 @router.post(
     "/{conversation_id}/messages",
     response_model=SendMessageResponse,
+    dependencies=[Depends(check_ai_generation_rate_limit)],
 )
 def send_conversation_message(
     conversation_id: int,

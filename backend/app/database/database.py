@@ -1,26 +1,17 @@
-import os
-
-from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import (
     declarative_base,
     sessionmaker,
 )
 
+from app.core import settings
 
-load_dotenv()
 
-
-DATABASE_URL = os.getenv(
-    "DATABASE_URL"
-)
-
+DATABASE_URL = settings.DATABASE_URL
 
 if not DATABASE_URL:
-
     raise ValueError(
-        "DATABASE_URL is not set "
-        "in the .env file"
+        "DATABASE_URL is not set in configuration"
     )
 
 
@@ -31,9 +22,10 @@ else:
     engine_kwargs.update(
         {
             "pool_pre_ping": True,
-            "pool_recycle": 1800,
-            "pool_size": 10,
-            "max_overflow": 20,
+            "pool_recycle": getattr(settings, "DB_POOL_RECYCLE", 1800),
+            "pool_size": getattr(settings, "DB_POOL_SIZE", 10),
+            "max_overflow": getattr(settings, "DB_MAX_OVERFLOW", 20),
+            "pool_timeout": getattr(settings, "DB_POOL_TIMEOUT", 30),
         }
     )
 
@@ -54,13 +46,11 @@ Base = declarative_base()
 
 
 def get_db():
-
     db = SessionLocal()
-
     try:
-
         yield db
-
+    except Exception:
+        db.rollback()
+        raise
     finally:
-
         db.close()

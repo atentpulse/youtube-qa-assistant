@@ -23,6 +23,7 @@ from app.services.rag_service import (
 )
 
 from app.dependencies import get_rag_service
+from app.core.rate_limiter import check_ai_generation_rate_limit
 
 from app.services.conversation_service import (
     ConversationService,
@@ -44,6 +45,7 @@ conversation_service = ConversationService()
 @router.post(
     "/ask",
     response_model=AskQuestionResponse,
+    dependencies=[Depends(check_ai_generation_rate_limit)],
 )
 def ask_question(
     request: AskQuestionRequest,

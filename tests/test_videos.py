@@ -208,9 +208,8 @@ async def test_qdrant_add_documents_batching_and_timeout():
     assert batch1[0].payload["video_id"] == "test_batch_vid"
 
 
-@pytest.mark.asyncio
-async def test_rag_process_video_background_timeout_failure_handling(db, test_user, monkeypatch, capsys):
-    from unittest.mock import MagicMock
+def test_rag_process_video_background_timeout_failure_handling(db, test_user, monkeypatch):
+    from unittest.mock import MagicMock, patch
     from app.services.rag_service import RAGService
     from app.services.video_storage_service import VideoStorageService
     from app.models.video import Video
@@ -238,20 +237,22 @@ async def test_rag_process_video_background_timeout_failure_handling(db, test_us
     monkeypatch.setattr(rag_service_mod, "SessionLocal", lambda: db)
 
     # Must catch exception gracefully and not raise
-    rag.process_video_background("timeout_vid_123", test_user.id)
+    with patch.object(rag_service_mod.logger, "error", wraps=rag_service_mod.logger.error) as mock_log_error:
+        rag.process_video_background("timeout_vid_123", test_user.id)
 
     # Verify video was marked failed in DB
     db.expire_all()
     vid = db.query(Video).filter(Video.video_id == "timeout_vid_123").first()
     assert vid.status == "failed"
 
-    # Verify exception was logged/printed without being swallowed
-    captured = capsys.readouterr()
-    assert "Video processing failed: The write operation timed out" in captured.out
+    # Verify exception was logged without being swallowed and recorded in DB
+    assert mock_log_error.called
+    call_args = mock_log_error.call_args[0]
+    assert any("timeout_vid_123" in str(arg) for arg in call_args)
+    assert vid.error_message and "The write operation timed out" in vid.error_message
 
 
-@pytest.mark.asyncio
-async def test_failed_video_can_be_retried(db, test_user):
+def test_failed_video_can_be_retried(db, test_user):
     from unittest.mock import MagicMock
     from app.services.rag_service import RAGService
     from app.services.video_storage_service import VideoStorageService
