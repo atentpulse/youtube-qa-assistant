@@ -167,3 +167,9 @@ service-account*.json
 *.swp
 *.swo
 *~
+
+# Ignore all Markdown files
+*.md
+**/*.md
+
+# Keep Markdown files out of Git even if previously tracked
