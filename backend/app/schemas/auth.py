@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class RegisterRequest(BaseModel):
@@ -15,6 +15,14 @@ class RegisterRequest(BaseModel):
         min_length=6,
         max_length=100,
     )
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_byte_length(cls, v: str) -> str:
+        if len(v.encode("utf-8")) > 72:
+            raise ValueError("Password must not exceed 72 bytes.")
+        return v
+
 
 
 class LoginRequest(BaseModel):
@@ -81,6 +89,14 @@ class ResetPasswordRequest(BaseModel):
         min_length=6,
         max_length=100,
     )
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password_byte_length(cls, v: str) -> str:
+        if len(v.encode("utf-8")) > 72:
+            raise ValueError("Password must not exceed 72 bytes.")
+        return v
+
 
 
 class OAuthExchangeRequest(BaseModel):
