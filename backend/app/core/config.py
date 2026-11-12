@@ -1,7 +1,7 @@
 import ipaddress
 import os
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Any, List, Optional, Union
 import urllib.parse
 from pydantic import Field, ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -47,9 +47,15 @@ class Settings(BaseSettings):
     OTP_RESEND_COOLDOWN_SECONDS: int = 60
     OTP_MAX_ATTEMPTS: int = 5
 
+    # Worker & Process Configuration
+    WORKERS: int = 4
+
     # Database Pool Configuration
-    DB_POOL_SIZE: int = 10
-    DB_MAX_OVERFLOW: int = 20
+    # Sized so WORKERS * (DB_POOL_SIZE + DB_MAX_OVERFLOW) = 4 * 10 = 40 peak connections.
+    # Single deployment leaves 57 headroom slots; rolling deployment (2 x 40 = 80) leaves 17 slots
+    # out of standard 97 usable application connections (max_connections=100, superuser_reserved=3).
+    DB_POOL_SIZE: int = 5
+    DB_MAX_OVERFLOW: int = 5
     DB_POOL_RECYCLE: int = 1800
     DB_POOL_TIMEOUT: int = 30
 
@@ -96,6 +102,50 @@ class Settings(BaseSettings):
     VECTOR_DIMENSION: int = 384
     EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
     RERANKER_MODEL: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+
+    @field_validator("WORKERS", mode="before")
+    @classmethod
+    def validate_workers(cls, value: Any) -> int:
+        try:
+            ival = int(value)
+        except (ValueError, TypeError):
+            raise ValueError(f"WORKERS must be an integer, got '{value}'")
+        if ival < 1:
+            raise ValueError(f"WORKERS must be a positive integer (>= 1), got {ival}")
+        return ival
+
+    @field_validator("DB_POOL_SIZE", mode="before")
+    @classmethod
+    def validate_db_pool_size(cls, value: Any) -> int:
+        try:
+            ival = int(value)
+        except (ValueError, TypeError):
+            raise ValueError(f"DB_POOL_SIZE must be an integer, got '{value}'")
+        if ival < 1:
+            raise ValueError(f"DB_POOL_SIZE must be a positive integer (>= 1), got {ival}")
+        return ival
+
+    @field_validator("DB_MAX_OVERFLOW", mode="before")
+    @classmethod
+    def validate_db_max_overflow(cls, value: Any) -> int:
+        try:
+            ival = int(value)
+        except (ValueError, TypeError):
+            raise ValueError(f"DB_MAX_OVERFLOW must be an integer, got '{value}'")
+        if ival < 0:
+            raise ValueError(f"DB_MAX_OVERFLOW cannot be negative, got {ival}")
+        return ival
+
+    @field_validator("DB_POOL_RECYCLE", "DB_POOL_TIMEOUT", mode="before")
+    @classmethod
+    def validate_db_pool_timeouts(cls, value: Any) -> int:
+        try:
+            ival = int(value)
+        except (ValueError, TypeError):
+            raise ValueError(f"Database pool timeout/recycle must be an integer, got '{value}'")
+        if ival < 1:
+            raise ValueError(f"Database pool timeout/recycle must be positive (>= 1), got {ival}")
+        return ival
 
     @field_validator("ALGORITHM", mode="before")
     @classmethod
@@ -303,6 +353,19 @@ class Settings(BaseSettings):
             if ext_origin not in origins:
                 origins.append(ext_origin)
         return origins
+
+    @property
+    def max_backend_db_connections(self) -> int:
+        """Total potential concurrent database connections from this backend instance across all workers.
+
+        Calculated as WORKERS * (DB_POOL_SIZE + DB_MAX_OVERFLOW).
+        Under default settings (4 workers, pool 5, overflow 5), peak consumption is 40 connections.
+        In a single deployment, this leaves 57 headroom slots in default PostgreSQL (97 usable application slots).
+        During rolling deployments with two overlapping instances (2 * 40 = 80 connections), headroom drops
+        to 17 slots (97 - 80 = 17) for Alembic migrations, health probes, and administration.
+        Actual connection availability depends on the database server configuration.
+        """
+        return self.WORKERS * (self.DB_POOL_SIZE + self.DB_MAX_OVERFLOW)
 
 
 settings = Settings()

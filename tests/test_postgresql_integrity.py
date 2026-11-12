@@ -4,6 +4,12 @@ from app.database.database import engine as pg_engine
 from app.services.lock_service import VideoIngestionLock
 
 
+@pytest.fixture(autouse=True)
+def require_postgresql_environment(require_postgres):
+    """Ensure PostgreSQL is accessible before running any test in this module."""
+    pass
+
+
 def test_postgresql_foreign_key_cascades_and_set_null():
     """
     Directly query PostgreSQL information_schema to verify constraint enforcement:

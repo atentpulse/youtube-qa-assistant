@@ -23,8 +23,8 @@ else:
         {
             "pool_pre_ping": True,
             "pool_recycle": getattr(settings, "DB_POOL_RECYCLE", 1800),
-            "pool_size": getattr(settings, "DB_POOL_SIZE", 10),
-            "max_overflow": getattr(settings, "DB_MAX_OVERFLOW", 20),
+            "pool_size": getattr(settings, "DB_POOL_SIZE", 5),
+            "max_overflow": getattr(settings, "DB_MAX_OVERFLOW", 5),
             "pool_timeout": getattr(settings, "DB_POOL_TIMEOUT", 30),
         }
     )

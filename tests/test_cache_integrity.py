@@ -93,7 +93,7 @@ def test_long_question_cache_no_btree_error(db, test_user):
     assert cached_updated["answer"] == "Updated answer for long question."
 
 
-def test_atomic_upsert_concurrency():
+def test_atomic_upsert_concurrency(require_postgres):
     """
     Verify that concurrent saves for the exact same question and video succeed
     in PostgreSQL without race conditions or duplicate key crashes.

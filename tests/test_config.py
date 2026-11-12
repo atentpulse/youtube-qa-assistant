@@ -78,8 +78,9 @@ def test_trusted_proxies_parsing():
 def test_production_configuration_fields():
     """Verify new production database pool and session configuration defaults."""
     s = Settings()
-    assert s.DB_POOL_SIZE == 10
-    assert s.DB_MAX_OVERFLOW == 20
+    assert s.WORKERS == 4
+    assert s.DB_POOL_SIZE == 5
+    assert s.DB_MAX_OVERFLOW == 5
     assert s.DB_POOL_RECYCLE == 1800
     assert s.MAX_REQUEST_BODY_SIZE_BYTES == 10 * 1024 * 1024
     assert s.SESSION_SECRET_KEY is None
@@ -577,3 +578,115 @@ def test_compose_explicit_callback_override():
     """12. Explicit callback override."""
     uri = _evaluate_compose_redirect_uri({"GOOGLE_REDIRECT_URI": "https://custom.example.com/auth/google/callback"})
     assert uri == "https://custom.example.com/auth/google/callback"
+
+
+def test_db_pool_configuration_defaults():
+    """Verify conservative database pool defaults and max backend connection budget."""
+    s = Settings()
+    assert s.WORKERS == 4
+    assert s.DB_POOL_SIZE == 5
+    assert s.DB_MAX_OVERFLOW == 5
+    assert s.DB_POOL_RECYCLE == 1800
+    assert s.DB_POOL_TIMEOUT == 30
+    # Single deployment budget: WORKERS * (DB_POOL_SIZE + DB_MAX_OVERFLOW) = 40
+    assert s.max_backend_db_connections == 40
+    assert 97 - s.max_backend_db_connections == 57  # single-deployment headroom
+    # Overlapping / rolling deployment budget (2 simultaneous instances) = 80
+    assert 2 * s.max_backend_db_connections == 80
+    assert 97 - (2 * s.max_backend_db_connections) == 17  # rolling-deployment headroom
+
+
+def test_db_pool_custom_configuration():
+    """Verify custom database pool and worker parameters."""
+    s = Settings(WORKERS=2, DB_POOL_SIZE=8, DB_MAX_OVERFLOW=2, DB_POOL_RECYCLE=600, DB_POOL_TIMEOUT=15)
+    assert s.WORKERS == 2
+    assert s.DB_POOL_SIZE == 8
+    assert s.DB_MAX_OVERFLOW == 2
+    assert s.DB_POOL_RECYCLE == 600
+    assert s.DB_POOL_TIMEOUT == 15
+    assert s.max_backend_db_connections == 20
+
+
+def test_sqlalchemy_engine_pool_configuration():
+    """Verify that SQLAlchemy engine actually applies configured pool parameters."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.pool import QueuePool
+
+    s = Settings(DB_POOL_SIZE=7, DB_MAX_OVERFLOW=3, DB_POOL_RECYCLE=900, DB_POOL_TIMEOUT=15)
+    engine = create_engine(
+        "postgresql://user:pass@localhost:5432/testdb",
+        pool_size=s.DB_POOL_SIZE,
+        max_overflow=s.DB_MAX_OVERFLOW,
+        pool_recycle=s.DB_POOL_RECYCLE,
+        pool_timeout=s.DB_POOL_TIMEOUT,
+    )
+    assert isinstance(engine.pool, QueuePool)
+    assert engine.pool.size() == 7
+    assert engine.pool._max_overflow == 3
+    assert engine.pool._recycle == 900
+    assert engine.pool._timeout == 15
+
+
+def test_db_pool_zero_overflow_allowed():
+    """Verify DB_MAX_OVERFLOW=0 is allowed (disables overflow connections beyond pool)."""
+    s = Settings(DB_MAX_OVERFLOW=0)
+    assert s.DB_MAX_OVERFLOW == 0
+    assert s.max_backend_db_connections == 20
+
+
+def test_db_pool_invalid_values():
+    """Verify validation rejects zero/negative pool size, negative overflow, or non-positive timeouts."""
+    with pytest.raises(ValidationError):
+        Settings(DB_POOL_SIZE=0)
+    with pytest.raises(ValidationError):
+        Settings(DB_POOL_SIZE=-1)
+    with pytest.raises(ValidationError):
+        Settings(DB_POOL_SIZE="invalid")
+    with pytest.raises(ValidationError):
+        Settings(DB_MAX_OVERFLOW=-1)
+    with pytest.raises(ValidationError):
+        Settings(DB_MAX_OVERFLOW="invalid")
+    with pytest.raises(ValidationError):
+        Settings(DB_POOL_RECYCLE=0)
+    with pytest.raises(ValidationError):
+        Settings(DB_POOL_TIMEOUT=-5)
+
+
+def test_worker_configuration_defaults_and_custom():
+    """Verify Uvicorn worker settings defaults and overrides."""
+    s_default = Settings()
+    assert s_default.WORKERS == 4
+
+    s_custom = Settings(WORKERS=8)
+    assert s_custom.WORKERS == 8
+
+
+def test_worker_configuration_rejects_invalid():
+    """Verify validation rejects zero, negative, or non-integer worker counts."""
+    with pytest.raises(ValidationError):
+        Settings(WORKERS=0)
+    with pytest.raises(ValidationError):
+        Settings(WORKERS=-2)
+    with pytest.raises(ValidationError):
+        Settings(WORKERS="abc")
+
+
+def test_compose_workers_and_db_pool_interpolation():
+    """Verify docker-compose.yml properly parameterizes WORKERS, DB_POOL_SIZE, and DB_MAX_OVERFLOW."""
+    from pathlib import Path
+    compose_file = Path(__file__).resolve().parents[1] / "docker-compose.yml"
+    assert compose_file.exists()
+    content = compose_file.read_text(encoding="utf-8")
+    assert "WORKERS=${WORKERS:-4}" in content
+    assert "DB_POOL_SIZE=${DB_POOL_SIZE:-5}" in content
+    assert "DB_MAX_OVERFLOW=${DB_MAX_OVERFLOW:-5}" in content
+
+
+def test_dockerfile_workers_configuration():
+    """Verify backend/Dockerfile specifies default WORKERS=4 and parameterized CMD."""
+    from pathlib import Path
+    dockerfile = Path(__file__).resolve().parents[1] / "backend" / "Dockerfile"
+    assert dockerfile.exists()
+    content = dockerfile.read_text(encoding="utf-8")
+    assert "WORKERS=4" in content
+    assert "--workers ${WORKERS:-4}" in content

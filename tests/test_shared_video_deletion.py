@@ -99,7 +99,7 @@ async def test_direct_orm_deletion_preserves_shared_canonical_video(
     assert storage.get_video(shared_vid, test_user_2.id) is not None
 
 
-def test_postgresql_foreign_key_delete_set_null():
+def test_postgresql_foreign_key_delete_set_null(require_postgres):
     """
     Test C: Verify against real PostgreSQL database that the fk_videos_user_id
     foreign key constraint has delete_rule = 'SET NULL' and raw SQL DELETE FROM users

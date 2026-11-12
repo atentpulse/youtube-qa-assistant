@@ -19,7 +19,7 @@ import pytest
 import pytest_asyncio
 import httpx
 from starlette.testclient import TestClient
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -52,6 +52,73 @@ engine = create_engine(
     poolclass=StaticPool,
 )
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+_pg_available_cache = None
+
+
+def get_postgres_availability(force_refresh: bool = False) -> tuple[bool, str]:
+    """
+    Safely probes whether the configured PostgreSQL database is accessible and responsive.
+    Returns (is_available, status_or_reason).
+    """
+    global _pg_available_cache
+    if not force_refresh and _pg_available_cache is not None:
+        return _pg_available_cache
+
+    from app.database.database import engine as pg_engine
+
+    if pg_engine.dialect.name != "postgresql":
+        _pg_available_cache = (
+            False,
+            f"Configured database dialect is '{pg_engine.dialect.name}', not 'postgresql'",
+        )
+        return _pg_available_cache
+
+    probe_engine = None
+    try:
+        # Create a lightweight temporary probe engine with a short 2-second connection timeout
+        probe_engine = create_engine(
+            pg_engine.url,
+            connect_args={"connect_timeout": 2},
+            pool_pre_ping=False,
+        )
+        with probe_engine.connect() as conn:
+            result = conn.execute(text("SELECT 1")).scalar()
+            if result == 1:
+                _pg_available_cache = (True, "PostgreSQL reachable and responding to SELECT 1")
+                return _pg_available_cache
+            else:
+                _pg_available_cache = (False, f"PostgreSQL SELECT 1 returned unexpected value: {result}")
+                return _pg_available_cache
+    except Exception as exc:
+        err_str = str(exc)
+        if "@" in err_str:
+            import re
+            err_str = re.sub(r"://[^@]+@", "://***:***@", err_str)
+        _pg_available_cache = (False, f"Cannot connect to PostgreSQL: {err_str}")
+        return _pg_available_cache
+    finally:
+        if probe_engine is not None:
+            probe_engine.dispose()
+
+
+@pytest.fixture
+def require_postgres():
+    """
+    Guards PostgreSQL-dependent integration tests.
+    If PostgreSQL is reachable: test proceeds normally with real assertions.
+    If PostgreSQL is unreachable:
+      - Fails explicitly if REQUIRE_POSTGRES=1 is set.
+      - Skips cleanly if optional.
+    """
+    is_avail, reason = get_postgres_availability()
+    if not is_avail:
+        is_required = os.getenv("REQUIRE_POSTGRES", "").strip().lower() in ("1", "true", "yes")
+        if is_required:
+            pytest.fail(f"PostgreSQL is explicitly required by REQUIRE_POSTGRES, but is unavailable: {reason}")
+        else:
+            pytest.skip(f"PostgreSQL integration test skipped: {reason}")
+    return is_avail
 
 
 @pytest.fixture(autouse=True)
