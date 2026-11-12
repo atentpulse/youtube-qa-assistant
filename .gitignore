@@ -73,13 +73,16 @@ Thumbs.db
 desktop.ini
 
 # ==============================
-# Database / Local Data
+# Database / Local Data & Backups
 # ==============================
 
 *.db
 *.sqlite
 *.sqlite3
 *.index
+*.dump
+*.backup
+backups/
 data/
 scratch/
 
