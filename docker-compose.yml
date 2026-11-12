@@ -1,15 +1,65 @@
 services:
   # ----------------------------------------------------------------------------
+  # Nginx Reverse Proxy / Edge Gateway
+  # Terminates incoming HTTP traffic, routes API requests to FastAPI,
+  # and routes frontend/SPA requests to the React static server.
+  # ----------------------------------------------------------------------------
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: ytgenius-nginx
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:80/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  # ----------------------------------------------------------------------------
+  # YtGenius React/Vite Frontend (Alpine Nginx Static SPA Server)
+  # Internal service: exposed strictly on internal Docker network to Nginx proxy
+  # ----------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: ytgenius-frontend:latest
+    container_name: ytgenius-frontend
+    restart: unless-stopped
+    expose:
+      - "80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:80/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  # ----------------------------------------------------------------------------
   # YtGenius FastAPI Backend Service
   # ----------------------------------------------------------------------------
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    image: ytgenius-backend:cpu-optimized
     container_name: ytgenius-backend
     restart: unless-stopped
     ports:
-      - "${PORT:-8000}:8000"
+      # Bound strictly to loopback to prevent direct external internet exposure
+      - "127.0.0.1:${PORT:-8000}:8000"
     environment:
       - ENVIRONMENT=${ENVIRONMENT:-production}
       - "DATABASE_URL=postgresql://${POSTGRES_USER:-ytgenius}:${POSTGRES_PASSWORD:?Error: POSTGRES_PASSWORD must be explicitly provided}@postgres:5432/${POSTGRES_DB:-ytgenius}"
@@ -32,8 +82,10 @@ services:
       - MAIL_FROM=${MAIL_FROM:-}
       - MAIL_SERVER=${MAIL_SERVER:-smtp.gmail.com}
       - MAIL_PORT=${MAIL_PORT:-587}
-      - DB_POOL_SIZE=${DB_POOL_SIZE:-10}
-      - DB_MAX_OVERFLOW=${DB_MAX_OVERFLOW:-20}
+      - WORKERS=${WORKERS:-4}
+      - HF_HOME=/home/ytgenius/.cache/huggingface
+      - DB_POOL_SIZE=${DB_POOL_SIZE:-5}
+      - DB_MAX_OVERFLOW=${DB_MAX_OVERFLOW:-5}
       - DB_POOL_RECYCLE=${DB_POOL_RECYCLE:-1800}
       - DB_POOL_TIMEOUT=${DB_POOL_TIMEOUT:-30}
       - MAX_REQUEST_BODY_SIZE_BYTES=${MAX_REQUEST_BODY_SIZE_BYTES:-10485760}

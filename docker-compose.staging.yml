@@ -1,0 +1,79 @@
+# YtGenius Phase 3B — Staging Multi-Service Topology
+# Uses isolated host ports (8005, 5434, 6335) and fresh namespaced staging volumes.
+# Employs verified CPU-optimized image with baked model weights.
+
+services:
+  backend:
+    image: ytgenius-backend:cpu-optimized
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8005:8000"
+    environment:
+      - ENVIRONMENT=staging
+      - DATABASE_URL=postgresql://ytgenius:ytgenius_staging_secret_pw@postgres:5432/ytgenius_staging
+      - SECRET_KEY=staging-secret-key-at-least-32-chars-long
+      - SESSION_SECRET_KEY=staging-session-secret-key-32-chars
+      - QDRANT_URL=http://qdrant:6333
+      - QDRANT_API_KEY=
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - GROQ_MODEL=${GROQ_MODEL:-openai/gpt-oss-20b}
+      - FRONTEND_URL=http://localhost:3000
+      - CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - GOOGLE_REDIRECT_URI=http://localhost:8005/auth/google/callback
+      - MAIL_USERNAME=${MAIL_USERNAME:-}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
+      - MAIL_FROM=${MAIL_FROM:-}
+      - MAIL_SERVER=${MAIL_SERVER:-smtp.gmail.com}
+      - MAIL_PORT=${MAIL_PORT:-587}
+      - WORKERS=2
+      - HF_HOME=/home/ytgenius/.cache/huggingface
+      - HF_HUB_OFFLINE=1
+      - DB_POOL_SIZE=5
+      - DB_MAX_OVERFLOW=5
+      - DB_POOL_RECYCLE=1800
+      - DB_POOL_TIMEOUT=30
+      - RATE_LIMIT_PER_MINUTE=60
+      - RATE_LIMIT_BURST=100
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 25s
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ytgenius
+      POSTGRES_PASSWORD: ytgenius_staging_secret_pw
+      POSTGRES_DB: ytgenius_staging
+    ports:
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - staging_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ytgenius -d ytgenius_staging"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  qdrant:
+    image: qdrant/qdrant:v1.13.2
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6335:6333"
+      - "127.0.0.1:6336:6334"
+    volumes:
+      - staging_qdrant_data:/qdrant/storage
+
+volumes:
+  staging_postgres_data:
+  staging_qdrant_data:
