@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install python dependencies into a local user prefix, excluding Windows-only pywin32
 COPY requirements.txt .
 RUN grep -iv "^pywin32" requirements.txt > /tmp/requirements.linux.txt \
+    && pip install --no-cache-dir --user --index-url https://download.pytorch.org/whl/cpu "torch==2.13.0+cpu" \
     && pip install --no-cache-dir --user -r /tmp/requirements.linux.txt \
     && rm /tmp/requirements.linux.txt
 
@@ -42,9 +43,14 @@ ENV HOME=/home/ytgenius \
     PATH="/home/ytgenius/.local/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PORT=8000
+    PORT=8000 \
+    WORKERS=4 \
+    HF_HOME=/home/ytgenius/.cache/huggingface
 
 USER ytgenius
+
+# Pre-download and cache pinned Hugging Face models so container startup is fast, offline, and reliable
+RUN python -c "from sentence_transformers import SentenceTransformer, CrossEncoder; SentenceTransformer('all-MiniLM-L6-v2', revision='1110a243fdf4706b3f48f1d95db1a4f5529b4d41'); CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2', revision='233902d25c440f23af6f7d6e94d2946bac0bee0a')"
 
 EXPOSE 8000
 
@@ -52,5 +58,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD curl -f http://localhost:8000/health/live || exit 1
 
-# Production command: apply migrations and start uvicorn with 4 worker processes
-CMD ["sh", "-c", "alembic -c alembic.ini upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4"]
+# Production command: apply migrations and start uvicorn with configured worker processes
+CMD ["sh", "-c", "alembic -c alembic.ini upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers ${WORKERS:-4}"]
